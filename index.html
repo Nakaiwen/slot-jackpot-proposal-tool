@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>彩金主題prompt自動產生器 v1.0</title>
+<title>彩金主題prompt自動產生器 v1.0 · built with Fable 5</title>
 <style>
 /* ===== 基本版面：小六太乙紅金系 ===== */
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -213,7 +213,7 @@ input[type=text]:focus { outline: none; border-color: #c9922a; }
 <body>
 
 <h1>🎰 彩金主題prompt自動產生器</h1>
-<div class="subtitle">v1.0｜3-5特色 × 4/5彩金 × 十二主題 × 五背景 × 五色自選 × 設定存讀 × 提案/拆圖雙prompt → 產出 ChatGPT 繪圖 prompt（上下畫面各 1920×1080）</div>
+<div class="subtitle">v1.0 · built with Fable 5｜3-5特色 × 4/5彩金 × 十二主題 × 五背景 × 五色自選 × 設定存讀 × 三段prompt → 產出 ChatGPT 繪圖 prompt（上下畫面各 1920×1080）</div>
 
 <div class="layout">
 
@@ -1271,6 +1271,7 @@ function buildConfigJSON() {
   const t = themeData();
   return {
     tool: 'slot-jackpot-proposal-tool',
+    version: 'v1.0 · built with Fable 5',
     exportedAt: new Date().toISOString(),
     jpCount: state.jpCount,
     tierKeys: state.tierKeys.slice(),
@@ -1383,7 +1384,7 @@ function drawConfigCard() {
   // 標題
   ctx.fillStyle = '#ffd54f';
   ctx.font = 'bold 26px "Microsoft JhengHei", sans-serif';
-  ctx.fillText('🎰 彩金主題prompt自動產生器 — 設定摘要', 32, 48);
+  ctx.fillText('🎰 彩金主題prompt自動產生器 v1.0 · built with Fable 5 — 設定摘要', 32, 48);
   ctx.fillStyle = '#b89b6a';
   ctx.font = '14px "Microsoft JhengHei", sans-serif';
   ctx.fillText(new Date().toLocaleString('zh-TW'), 32, 74);

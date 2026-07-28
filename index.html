@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>彩金主題prompt自動產生器 v1.0 · built with Fable 5</title>
+<title>彩金主題prompt自動產生器 v1.01 · built with Fable 5</title>
 <style>
 /* ===== 基本版面：小六太乙紅金系 ===== */
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -213,7 +213,7 @@ input[type=text]:focus { outline: none; border-color: #c9922a; }
 <body>
 
 <h1>🎰 彩金主題prompt自動產生器</h1>
-<div class="subtitle">v1.0 · built with Fable 5｜3-5特色 × 4/5彩金 × 十二主題 × 五背景 × 五色自選 × 設定存讀 × 三段prompt → 產出 ChatGPT 繪圖 prompt（上下畫面各 1920×1080）</div>
+<div class="subtitle">v1.01 · built with Fable 5｜3-5特色 × 4/5彩金 × 十二主題 × 五背景 × 五色自選 × 設定存讀 × 三段prompt → 產出 ChatGPT 繪圖 prompt（上下畫面各 1920×1080）</div>
 
 <div class="layout">
 
@@ -390,7 +390,7 @@ input[type=text]:focus { outline: none; border-color: #c9922a; }
         <button class="opt-btn active" data-val="redraw">同脈絡重繪（推薦）</button>
         <button class="opt-btn" data-val="cutout">保像素摳圖</button>
       </div>
-      <div class="hint" style="margin-bottom:8px">重繪模式＝在「同一個 ChatGPT 對話」中依 ①→②→③ 順序執行，模型憑短期記憶把每個元件重新獨立畫在透明底上——邊緣天生乾淨，允許與提案圖有輕微繪製差異（提案階段可接受）。保像素摳圖＝忠於定稿像素、靠去污條款處理邊緣。元件清單會跟著上方設定自動生成。</div>
+      <div class="hint" style="margin-bottom:8px">重繪模式＝在「同一個 ChatGPT 對話」中依 ①→②→③ 順序執行，模型憑短期記憶把每個元件重新獨立畫在透明底上——邊緣天生乾淨，允許與提案圖有輕微繪製差異（提案階段可接受）。保像素摳圖＝忠於定稿像素、靠去污條款處理邊緣。元件清單會跟著上方設定自動生成。<br>※ 界線聲明：③是「提案階段」的工具——定稿資產應在製作時就原生分層繪製，不要用③去交定稿。</div>
       <textarea id="splitPromptOut" readonly style="min-height:260px"></textarea>
     </div>
 
@@ -1142,15 +1142,41 @@ function renderSplitPrompt() {
   let idx = 0;
   const lines = [];
 
-  lines.push(`【需要拆出的元件】`);
-  lines.push(`第一組：JP 彩金元件（每組拆成「英文標題」與「空白底框」兩件，共 ${tiers.length * 2} 件；不需輸出任何金額數字）`);
+  lines.push(`【需要拆出的元件】請依清單編號「順序」逐一產出：越前面的元件越重要，請在脈絡記憶最新鮮時優先完成。`);
+  lines.push('');
+
+  // ── 第一組：主題物（焦點位優先，趁記憶最新鮮先畫最重要的） ──
+  lines.push(`第一組：${state.featCount} 個${t.label}主題物（焦點位在首）`);
+  lines.push('');
+  const totemOrder = [focalIdx, ...state.featNames.map((_, i) => i).filter(i => i !== focalIdx)];
+  totemOrder.forEach(i => {
+    const nm = state.featNames[i];
+    idx++;
+    const c = COLOR_PALETTE[state.featColorKeys[i]];
+    const focalNote = i === focalIdx ? '（畫面焦點，最重要，請最優先且最用心處理）' : '';
+    lines.push(`${idx}. TOTEM_${sanitizeFile(c.key)}_${fileTag(nm, i)}.png${focalNote}`);
+    lines.push(`   * ${c.label}色系的${noun}`);
+    lines.push(`   * 不包含「${nm}」名稱底板`);
+    lines.push(`   * 不包含背景、署名色外發光或其他主題物`);
+  });
+  lines.push('');
+  if (state.splitMode === 'redraw') {
+    lines.push(`【主題物原始規格——與提案 prompt 同文，重繪時同時以「提案畫面」與「本段規格」為準】`);
+    lines.push(t.enSubject);
+    lines.push('');
+  }
+  lines.push(`請完整保留每個主題物的造型、比例、材質與原本色調；邊緣細節（毛邊、流蘇、手指、垂飾等）必須乾淨完整，不可融合、缺角或產生多餘結構。`);
+  lines.push('');
+
+  // ── 第二組：JP 彩金元件（由最高階起） ──
+  lines.push(`第二組：JP 彩金元件（每組拆成「英文標題」與「空白底框」兩件，共 ${tiers.length * 2} 件；不需輸出任何金額數字；由最高階開始）`);
   lines.push('');
   tiers.forEach(tier => {
     idx++;
     const dispTitle = tierDisplay(tier.name);
     const langWord = state.lang === 'zh' ? '簡中' : '英文';
-    lines.push(`${idx}. JP_${sanitizeFile(tier.name)}_TITLE.png`);
     const logoNote = tier.name === 'DRAGON8' ? '（含品牌標誌字樣造型）' : '';
+    lines.push(`${idx}. JP_${sanitizeFile(tier.name)}_TITLE.png`);
     lines.push(`   * 僅「${dispTitle}」${langWord}標題字${logoNote}，保留原本的金色立體字與描邊造型`);
     lines.push(`   * 不包含底框、底板、金額數字與背景`);
     idx++;
@@ -1162,28 +1188,16 @@ function renderSplitPrompt() {
   lines.push(`每個底框元件必須包含完整外框，左右端不可裁切；標題字與底框分離後各自置中輸出，不可包含背景、遊戲 Logo 或其他 JP 元件。`);
   lines.push('');
 
+  // ── 第三組：遊戲 Logo ──
   idx++;
-  lines.push(`第二組：遊戲 Logo`);
+  lines.push(`第三組：遊戲 Logo`);
   lines.push('');
   lines.push(`${idx}. GAME_LOGO.png`);
   lines.push(`   * 完整保留簡體標題「${titleS}」的金色立體字、紅色描邊與下方拼音`);
   lines.push(`   * 不包含背景、彩金底板或其他元件`);
   lines.push('');
 
-  lines.push(`第三組：${state.featCount} 個${t.label}主題物`);
-  lines.push('');
-  state.featNames.forEach((nm, i) => {
-    idx++;
-    const c = COLOR_PALETTE[state.featColorKeys[i]];
-    lines.push(`${idx}. TOTEM_${sanitizeFile(c.key)}_${fileTag(nm, i)}.png`);
-    lines.push(`   * ${c.label}色系的${noun}`);
-    lines.push(`   * 不包含「${nm}」名稱底板`);
-    lines.push(`   * 不包含背景、署名色外發光或其他主題物`);
-  });
-  lines.push('');
-  lines.push(`請完整保留每個主題物的造型、比例、材質與原本色調；邊緣細節（毛邊、流蘇、手指、垂飾等）必須乾淨完整，不可融合、缺角或產生多餘結構。`);
-  lines.push('');
-
+  // ── 第四組：特色名稱底板 ──
   lines.push(`第四組：${state.featCount} 個特色名稱底板`);
   lines.push('');
   state.featNames.forEach((nm, i) => {
@@ -1271,7 +1285,7 @@ function buildConfigJSON() {
   const t = themeData();
   return {
     tool: 'slot-jackpot-proposal-tool',
-    version: 'v1.0 · built with Fable 5',
+    version: 'v1.01 · built with Fable 5',
     exportedAt: new Date().toISOString(),
     jpCount: state.jpCount,
     tierKeys: state.tierKeys.slice(),
@@ -1384,7 +1398,7 @@ function drawConfigCard() {
   // 標題
   ctx.fillStyle = '#ffd54f';
   ctx.font = 'bold 26px "Microsoft JhengHei", sans-serif';
-  ctx.fillText('🎰 彩金主題prompt自動產生器 v1.0 · built with Fable 5 — 設定摘要', 32, 48);
+  ctx.fillText('🎰 彩金主題prompt自動產生器 v1.01 · built with Fable 5 — 設定摘要', 32, 48);
   ctx.fillStyle = '#b89b6a';
   ctx.font = '14px "Microsoft JhengHei", sans-serif';
   ctx.fillText(new Date().toLocaleString('zh-TW'), 32, 74);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>彩金主題prompt自動產生器 v1.01 · built with Fable 5</title>
+<title>彩金主題prompt自動產生器 v1.19 · built with Fable 5</title>
 <style>
 /* ===== 基本版面：小六太乙紅金系 ===== */
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,6 +69,7 @@ input[type=text]:focus { outline: none; border-color: #c9922a; }
 .feat-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .feat-dot { width: 16px; height: 16px; border-radius: 50%; flex: 0 0 16px; border: 1px solid rgba(255,255,255,.4); }
 .tier-chip { font-size: 12.5px; padding: 6px 10px; }
+.row-locked { opacity: .45; pointer-events: none; }
 .feat-color-sel {
   background: #1e0a0a;
   border: 1px solid #5a2a1a;
@@ -187,7 +188,7 @@ input[type=text]:focus { outline: none; border-color: #c9922a; }
   font-size: 14px;
 }
 .copy-btn:active { transform: scale(.97); }
-#promptOut, #splitPromptOut, #langPromptOut {
+#promptOut, #splitPromptOut, #langPromptOut, #accumPromptOut {
   width: 100%;
   min-height: 320px;
   background: #150808;
@@ -208,17 +209,65 @@ input[type=text]:focus { outline: none; border-color: #c9922a; }
   opacity: 0; transition: opacity .3s; pointer-events: none;
 }
 .toast.show { opacity: 1; }
+.tabbar { display:flex; gap:8px; margin:0 0 14px; }
+.tab-btn { padding:8px 18px; border-radius:10px 10px 0 0; border:1px solid var(--line, #3a3a3a); background:transparent; color:inherit; cursor:pointer; font-size:14px; opacity:.65; }
+.tab-btn.active { opacity:1; border-bottom-color:transparent; background:rgba(255,213,79,.08); font-weight:bold; }
+.wb-layout { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+.wb-panel { flex:0 0 320px; }
+.wb-stage-panel { flex:1; min-width:600px; }
+#wbCanvas { width:100%; max-width:960px; aspect-ratio:16/9; background:#1a1a1a; border:1px solid #444; border-radius:8px; cursor:grab; touch-action:none; }
+.hint-inline { font-size:12px; opacity:.7; margin-left:10px; }
 </style>
 </head>
 <body>
 
 <h1>🎰 彩金主題prompt自動產生器</h1>
-<div class="subtitle">v1.01 · built with Fable 5｜3-5特色 × 4/5彩金 × 十二主題 × 五背景 × 五色自選 × 設定存讀 × 三段prompt → 產出 ChatGPT 繪圖 prompt（上下畫面各 1920×1080）</div>
+<div class="subtitle">v1.19 · built with Fable 5｜玩法模板×主角 × 3-5特色 × 4/5彩金 × 十二主題 × 五背景 × 六色自選 × 設定存讀 × 四段prompt（提案→換語系→五階累積→拆圖） → 產出 ChatGPT 繪圖 prompt（上下畫面各 1920×1080）</div>
 
+<div class="tabbar">
+  <button class="tab-btn active" id="tabBtnMain">📝 提案設定</button>
+  <button class="tab-btn" id="tabBtnWB">🧰 排版工作台</button>
+</div>
+
+<div id="tabMain">
 <div class="layout">
 
   <!-- ========== 左：設定面板 ========== -->
   <div class="panel panel-config" id="configPanel">
+
+    <div class="section">
+      <div class="section-title">⓪ 玩法模板</div>
+      <div class="opt-row" id="gameplayRow">
+        <button class="opt-btn active" data-val="generic">通用</button>
+        <button class="opt-btn" data-val="hhfp">HHFP（雙層輪盤）</button>
+      </div>
+      <div class="hint">HHFP＝雙層輪盤玩法：畫面五層堆疊（後→前）＝背景 → 雙層輪盤系統 → 四組JP彩金 → 單一主角 → 三特色主題物。選用後自動鎖定 3 特色＋GRAND/MAJOR/MINOR/MINI 四階，並開放「主角」選項；主題仍自由選（主題管特色物造型、主角另選）。</div>
+      <div id="wheelSegBox" style="display:none">
+        <div class="inline-field">
+          <label>外圈輪盤選項數量</label>
+          <div class="opt-row" id="wheelOutRow">
+            <button class="opt-btn" data-val="6">6</button>
+            <button class="opt-btn" data-val="7">7</button>
+            <button class="opt-btn" data-val="8">8</button>
+            <button class="opt-btn active" data-val="9">9</button>
+            <button class="opt-btn" data-val="10">10</button>
+            <button class="opt-btn" data-val="12">12</button>
+          </div>
+        </div>
+        <div class="inline-field">
+          <label>內圈輪盤選項數量</label>
+          <div class="opt-row" id="wheelInRow">
+            <button class="opt-btn" data-val="6">6</button>
+            <button class="opt-btn" data-val="7">7</button>
+            <button class="opt-btn" data-val="8">8</button>
+            <button class="opt-btn active" data-val="9">9</button>
+            <button class="opt-btn" data-val="10">10</button>
+            <button class="opt-btn" data-val="12">12</button>
+          </div>
+        </div>
+        <div class="hint">段數只影響提案畫面與拆圖描述（機台版遊戲玩法段數是另一份規格）。段數越多每段越窄，prompt 會自動加上「段內元素隨段數縮放但保持可讀」的守則。</div>
+      </div>
+    </div>
 
     <div class="section">
       <div class="section-title">① 畫面語言</div>
@@ -276,7 +325,28 @@ input[type=text]:focus { outline: none; border-color: #c9922a; }
         <button class="opt-btn" data-val="lion">舞獅頭</button>
         <button class="opt-btn" data-val="lantern">燈籠串</button>
         <button class="opt-btn" data-val="pig">中國風小豬</button>
+        <button class="opt-btn" data-val="hotpot">中式火鍋</button>
+        <button class="opt-btn" data-val="pirate">海盜寶藏</button>
       </div>
+    </div>
+
+    <div class="section" id="charSection" style="display:none">
+      <div class="section-title">🎭 主角（HHFP 專用・單一角色）</div>
+      <div class="opt-row" id="charRow">
+        <button class="opt-btn" data-val="none">不需要</button>
+        <button class="opt-btn active" data-val="god_chibi">Q版財神</button>
+        <button class="opt-btn" data-val="chef">小廚神</button>
+        <button class="opt-btn" data-val="boy">招財童子</button>
+        <button class="opt-btn" data-val="lionboy">舞獅少年</button>
+        <button class="opt-btn" data-val="pirateking">小海盜王</button>
+        <button class="opt-btn" data-val="goldpig">富貴金豬</button>
+        <button class="opt-btn" data-val="custom">自訂</button>
+      </div>
+      <div class="inline-field" id="charCustomField" style="display:none">
+        <label>自訂主角描述</label>
+        <input type="text" id="charCustomInput" placeholder="例：手持金元寶的胖橘貓招財貓">
+      </div>
+      <div class="hint">主角站在畫面視覺中心、輪盤 hub 之前、三特色主題物之後（第 4 層）。選「不需要」＝提案畫面不放角色，改為四層堆疊（輪盤全露、特色物略放大補視覺重心）。部分主角自帶輪盤造型（Q版財神＝紅燈籠轉輪），優先於主題的輪盤造型（海盜舵輪、火車羅盤）。與主題脫鉤：主題管特色物長什麼樣，主角另選。自訂＝以文字描述主角，會直接寫入 prompt。</div>
     </div>
 
     <div class="section">
@@ -288,7 +358,7 @@ input[type=text]:focus { outline: none; border-color: #c9922a; }
     <div class="section">
       <div class="section-title">⑥ 特色名稱（可自訂）</div>
       <div id="featNames"></div>
-      <div class="hint">名稱與顏色都可自選（金黃／紅／綠／藍／紫偏紅）。預設仍照紅金鐵律配色；視覺重心固定在中間位置——不論中間換成什麼顏色，中間的主題物永遠最大。</div>
+      <div class="hint">名稱與顏色都可自選（金黃／紅／綠／藍／紫偏紅／粉紅）。預設仍照紅金鐵律配色；HHFP 模板預設＝機台三寶盆順序（UPSIZED粉／4 SPIN綠／MAGIC藍）。視覺重心固定在中間位置——不論中間換成什麼顏色，中間的主題物永遠最大。</div>
     </div>
 
     <div class="section">
@@ -318,8 +388,11 @@ input[type=text]:focus { outline: none; border-color: #c9922a; }
         <button class="opt-btn" data-val="sky">藍天白雲</button>
         <button class="opt-btn" data-val="papercut">剪紙圖騰</button>
         <button class="opt-btn" data-val="palace">皇宮室內</button>
+        <button class="opt-btn" data-val="lanternstreet">夜晚燈籠街</button>
+        <button class="opt-btn" data-val="goldship">海上金船</button>
+        <button class="opt-btn" data-val="kungfukitchen">功夫廚房</button>
       </div>
-      <div class="hint">紅底祥雲＝經典暗紅底＋淡金雲紋。金色朝陽＝金色朝陽天空＋雲海遠山（仿聚宝发日景）。藍天白雲＝明亮蔚藍天空＋蓬鬆白雲。剪紙圖騰＝深紅底＋中央大圓回字紋層次＋左右對稱雲紋（同色系低對比，仿好运发）。皇宮室內＝金鑾殿對稱景：左右紅金蟠龍柱＋宮燈，中央深處龍椅屏風，暖光籠罩。五種背景都會壓低細節讓主題物站出來。</div>
+      <div class="hint">紅底祥雲＝經典暗紅底＋淡金雲紋。金色朝陽＝金色朝陽天空＋雲海遠山（仿聚宝发日景）。藍天白雲＝明亮蔚藍天空＋蓬鬆白雲。剪紙圖騰＝深紅底＋中央大圓回字紋層次＋左右對稱雲紋（同色系低對比，仿好运发）。皇宮室內＝金鑾殿對稱景：左右紅金蟠龍柱＋宮燈，暖光籠罩。夜晚燈籠街＝深藍夜空＋兩側紅燈籠串透視退遠＋屋簷剪影＋金紅光暈（無招牌無人群）。功夫廚房＝左右鑊火金焰＋蒸氣祥雲＋爐心暖光（無鍋具食材細節）。七種背景都會壓低細節讓主題物站出來。</div>
     </div>
 
     <div class="section">
@@ -383,17 +456,86 @@ input[type=text]:focus { outline: none; border-color: #c9922a; }
 
     <div class="panel">
       <div class="output-head">
-        <div class="section-title" style="margin:0">🧩 ChatGPT Prompt 輸出（③ 元件拆圖）</div>
+        <div class="section-title" style="margin:0">📶 ChatGPT Prompt 輸出（③ 五階累積感）</div>
+        <button class="copy-btn" id="copyAccumBtn">複製五階累積 Prompt</button>
+      </div>
+      <div class="hint" style="margin-bottom:8px">提案圖（＋換語系）滿意後，在「同一個 ChatGPT 對話」貼這段 prompt：一次產出 5 張「與提案相同構圖的完整畫面」——全部特色主題物一起<b>本體變大＋財寶越堆越多</b>（第1階最低但不空曠 → 第5階胖滿塞滿螢幕），背景、JP、Logo、名稱底板全程不動，像同一畫面的五格動畫。<b>階段基準：提案畫面＝第 4 階</b>，第 5 階比提案更大更滿。成長細則依主題自動帶入（樹＝全株變大＋銅錢變密、盆＝盆變大＋金山堆高、豬＝豬變大＋元寶堆高…）。<br>※ 同對話才有重繪記憶；斷對話重貼會失去一致性。prompt 改版後同對話會沿用舊結果，必須開新對話重跑 ①→③。</div>
+      <textarea id="accumPromptOut" readonly style="min-height:260px"></textarea>
+    </div>
+
+    <div class="panel">
+      <div class="output-head">
+        <div class="section-title" style="margin:0">🧩 ChatGPT Prompt 輸出（④ 元件拆圖）</div>
         <button class="copy-btn" id="copySplitBtn">複製拆圖 Prompt</button>
       </div>
       <div class="opt-row" id="splitModeRow" style="margin-bottom:8px">
         <button class="opt-btn active" data-val="redraw">同脈絡重繪（推薦）</button>
         <button class="opt-btn" data-val="cutout">保像素摳圖</button>
       </div>
-      <div class="hint" style="margin-bottom:8px">重繪模式＝在「同一個 ChatGPT 對話」中依 ①→②→③ 順序執行，模型憑短期記憶把每個元件重新獨立畫在透明底上——邊緣天生乾淨，允許與提案圖有輕微繪製差異（提案階段可接受）。保像素摳圖＝忠於定稿像素、靠去污條款處理邊緣。元件清單會跟著上方設定自動生成。<br>※ 界線聲明：③是「提案階段」的工具——定稿資產應在製作時就原生分層繪製，不要用③去交定稿。</div>
+      <div class="hint" style="margin-bottom:8px">重繪模式＝在「同一個 ChatGPT 對話」中依 ①→②→（③）→④ 順序執行，模型憑短期記憶把每個元件重新獨立畫在透明底上——邊緣天生乾淨，允許與提案圖有輕微繪製差異（提案階段可接受）。保像素摳圖＝忠於定稿像素、靠去污條款處理邊緣。元件清單會跟著上方設定自動生成。<br>※ 界線聲明：④是「提案階段」的工具——定稿資產應在製作時就原生分層繪製，不要用④去交定稿。</div>
       <textarea id="splitPromptOut" readonly style="min-height:260px"></textarea>
     </div>
 
+  </div>
+</div>
+
+</div><!-- /tabMain -->
+
+<div id="tabWB" style="display:none">
+  <div class="wb-layout">
+    <div class="panel wb-panel">
+      <div class="section">
+        <div class="section-title">拆圖檔載入</div>
+        <div class="opt-row">
+          <button class="opt-btn" id="wbLoadBtn">📂 載入拆圖 PNG（可多選）</button>
+          <button class="opt-btn" id="wbClearBtn">✕ 清除圖檔</button>
+        </div>
+        <input type="file" id="wbFile" accept="image/png,image/webp,.json" multiple style="display:none">
+        <div class="hint" id="wbLoadState">尚未載入。檔名自動對應：TOTEM_pink/green/blue_*、WHEEL_OUTER/INNER/HUB、JP_GRAND～MINI_FRAME/_TITLE、CHARACTER、GAME_LOGO、BG。沒圖的元素以佔位框排版，一樣可拖。也可一併選入 manifest.json 直接續排。</div>
+      </div>
+      <div class="section">
+        <div class="section-title">選中元素</div>
+        <div class="opt-row" id="wbElemRow">
+          <button class="opt-btn" data-val="wheel">轉輪</button>
+          <button class="opt-btn" data-val="jp">JP列</button>
+          <button class="opt-btn" data-val="logo">Logo</button>
+          <button class="opt-btn" data-val="character">主角</button>
+          <button class="opt-btn" data-val="pot.0">特色1</button>
+          <button class="opt-btn" data-val="pot.1">特色2</button>
+          <button class="opt-btn" data-val="pot.2">特色3</button>
+        </div>
+        <div class="inline-field"><label>縮放 <span id="wbScaleVal">1.00</span></label>
+          <input type="range" id="wbScale" min="0.2" max="2.5" step="0.01" value="1"></div>
+        <div class="inline-field" id="wbAngleField" style="display:none"><label>輪盤角度偏移 <span id="wbAngleVal">0°</span></label>
+          <input type="range" id="wbAngle" min="-180" max="180" step="1" value="0"></div>
+        <div id="wbJpBox" style="display:none">
+          <div class="inline-field"><label>JP 單格微調</label>
+            <div class="opt-row" id="wbJpItemRow">
+              <button class="opt-btn active" data-val="jp.grand">GRAND</button>
+              <button class="opt-btn" data-val="jp.major">MAJOR</button>
+              <button class="opt-btn" data-val="jp.minor">MINOR</button>
+              <button class="opt-btn" data-val="jp.mini">MINI</button>
+            </div>
+          </div>
+          <div class="inline-field"><label>單格縮放 <span id="wbJpScaleVal">1.00</span></label>
+            <input type="range" id="wbJpScale" min="0.5" max="1.8" step="0.01" value="1"></div>
+          <div class="hint">單格位置微調：選好單格後按住 Alt 拖曳；一般拖曳＝整列移動。</div>
+        </div>
+        <div class="hint">畫布上直接點選＋拖曳移動；方向鍵微移（Shift＝大步）；滾輪縮放。轉輪三件鎖同心、只能整組動。</div>
+      </div>
+      <div class="section">
+        <div class="section-title">Manifest</div>
+        <div class="opt-row">
+          <button class="opt-btn" id="wbExport">⬇ 匯出 manifest.json</button>
+          <button class="opt-btn" id="wbReset">↺ 重設預設排版</button>
+        </div>
+        <div class="hint">契約 xiaoliu.slot-skin/v1｜gameplay=HHFP｜contract=hhfp/1。manifest.json 與拆圖 PNG 同放一個資料夾＝一個皮膚包，之後直接餵給玩法模擬器（Skin v0.2）。</div>
+      </div>
+    </div>
+    <div class="panel wb-stage-panel">
+      <div class="section-title">上螢幕排版（1920×1080）<span class="hint-inline" id="wbSelName"></span></div>
+      <canvas id="wbCanvas" width="960" height="540"></canvas>
+    </div>
   </div>
 </div>
 
@@ -420,6 +562,11 @@ const state = {
   lang: 'en',        // 畫面語言：en 英文版 / zh 簡中版
   tierKeys: ['GRAND', 'MAJOR', 'MINOR', 'MINI'], // 從六階中選用的彩金
   splitMode: 'redraw', // 拆圖模式：redraw 同脈絡重繪 / cutout 保像素摳圖
+  gameplay: 'generic', // 玩法模板：generic 通用 / hhfp 雙層輪盤（背景→輪盤→JP→主角→特色物 五層堆疊）
+  charKey: 'god_chibi', // HHFP 主角（與主題脫鉤）
+  charCustom: '',       // charKey='custom' 時的自訂描述
+  wheelOut: 9,          // HHFP 外圈輪盤選項（段）數
+  wheelIn: 9,           // HHFP 內圈輪盤選項（段）數
 };
 
 // ---------- 公司六階彩金體系 ----------
@@ -460,6 +607,12 @@ const BG_CLAUSES = {
 `BACKGROUND: a deep crimson red backdrop with a SYMMETRICAL layered paper-cut composition (tone-on-tone red, like the classic Hao Yun Fa style): the centerpiece is one LARGE CIRCULAR medallion centered behind the game logo, formed by concentric rings bordered with the Chinese "hui" meander pattern (回字紋 greek-key border), each ring a slightly different shade of red to create gentle depth layers; flanking both left and right edges are MIRRORED stylized auspicious cloud-scroll motifs in the same tone-on-tone red, perfectly symmetrical. All motifs are FLAT low-contrast silhouettes (slightly darker or lighter red on red, like embossed paper layers) with smooth elegant curves — NO fine lattice work, NO dense intricate cutouts, NO small scattered patterns. The backdrop stays subtle and clearly recessive so the feature totems and banners dominate; foreground keeps the bright gold and vivid signature colors.`,
   palace:
 `BACKGROUND: the interior of a grand Chinese imperial palace hall, heavily SIMPLIFIED and blurred like a photo with strong depth-of-field: only THREE kinds of elements are allowed — (1) one pair of tall crimson-and-gold dragon columns framing the far left and right edges, (2) one palace lantern hanging beside each column, (3) a soft warm golden glow filling the center distance. Everything behind the totems is a smooth hazy wash of warm red-gold light with NO visible architecture — NO doors, NO wall panels, NO lattice windows, NO throne, NO screen walls, NO furniture, NO floor detail, NO sharp edges anywhere in the background. The columns and lanterns themselves are soft-focus with simple large forms and gentle blur. The palace mood comes from warm candlelight color alone, not from architectural detail; the backdrop stays a quiet stage so the feature totems and banners completely dominate.`,
+  lanternstreet:
+`BACKGROUND: a festive Chinese street at NIGHT, heavily SIMPLIFIED and blurred like a photo with strong depth-of-field: only THREE kinds of elements are allowed — (1) strings of glowing round red lanterns hanging along both sides of the street, receding into the distance with soft perspective, (2) faint dark silhouettes of curved Chinese rooftop eaves along the upper left and right edges, (3) a warm hazy glow of golden-red bokeh light filling the street's center distance. The sky is a deep calm night blue-violet. All lanterns are simple soft-focus glowing orbs — NO readable shop signs, NO text of any kind, NO people or crowds, NO market stalls, NO architectural detail, NO sharp edges anywhere in the background. The night-street mood comes from the warm lantern glow against the cool night sky alone; the backdrop stays a quiet stage so the feature totems and banners completely dominate, and the foreground keeps its bright red-gold palette popping against the night.`,
+  goldship:
+`BACKGROUND: the deck of a golden treasure ship at sea, heavily SIMPLIFIED and blurred with strong depth-of-field: only THREE kinds of elements are allowed — (1) a warm-gold sky-and-sea horizon with soft glittering waves, (2) faint dark silhouettes of the ship's mast, rigging ropes and a red sail catching light along the upper left and right edges, (3) a soft golden sun-glow filling the center distance. NO other ships, NO seagull flocks, NO readable flags or text, NO crowds, NO sharp edges anywhere in the background. The sea-voyage mood comes from the warm horizon glow and sail silhouettes alone; the backdrop stays clearly recessive so the feature totems and banners completely dominate, and the foreground keeps its bright red-gold palette popping against the sea.`,
+  kungfukitchen:
+`BACKGROUND: a legendary Chinese "kung fu kitchen", heavily SIMPLIFIED and blurred like a photo with strong depth-of-field: only THREE kinds of elements are allowed — (1) one large blazing golden wok-fire burst framing each of the far left and right edges, flames leaping upward in bold simple tongues, (2) soft swirling white-gold steam clouds drifting across the upper area, (3) a warm ember-orange glow filling the center distance like a roaring stove heart. Faint dark silhouettes of rustic wooden kitchen beams may appear at the very top edge only. Everything behind the totems is a smooth hazy wash of warm fire-gold light — NO visible cookware, NO food items, NO hanging utensils, NO shelves, NO tiles, NO text, NO sharp edges anywhere in the background. The kitchen mood comes from fire, steam and heat-glow alone, energetic like a martial-arts master's stove; the backdrop stays clearly recessive so the feature totems and banners completely dominate.`,
 };
 
 // ---------- 細節密度條款 ----------
@@ -499,7 +652,39 @@ const COLOR_PALETTE = {
   green:  { key:'green',  label:'綠',   hex:'#1fa348', css:'linear-gradient(180deg,#2fc55e,#0a4a20)', en:'vivid saturated emerald green' },
   blue:   { key:'blue',   label:'藍',   hex:'#1e6fd9', css:'linear-gradient(180deg,#2a7ae8,#0a2f6a)', en:'vivid saturated sapphire blue' },
   purple: { key:'purple', label:'紫（偏紅）', hex:'#b23a8e', css:'linear-gradient(180deg,#d05ab8,#5a0a4a)', en:'vivid saturated red-violet (magenta-leaning purple)' },
+  pink:   { key:'pink',   label:'粉紅', hex:'#f06aa8', css:'linear-gradient(180deg,#ff8fc0,#8e2054)', en:'vivid saturated rosy pink' },
 };
+// ---------- HHFP 玩法模板：主角庫（與主題脫鉤） ----------
+const CHARACTERS = {
+  god_chibi:    { label:'Q版財神',  en:'a cute chibi God of Wealth (Cai Shen) mascot — round chubby proportions, ornate red-and-gold imperial robe and winged hat with a gold 發 emblem, rosy cheeks, joyful open-armed welcoming pose',
+    wheelSkin: {
+      body: 'one GIANT ROUND RED PALACE LANTERN serving as the prize wheel — a perfectly circular glowing red lantern seen face-on',
+      extra: 'The lantern face is ribbed by bold ornate gold spokes radiating from the center like lantern frame ribs; an ornate gold cap crowns the top and a red-gold tassel hangs from the bottom. The lantern ROTATES like a wheel — the angle at which it stops selects the winning segment, so the segments are printed ON the lantern face and turn together with it.',
+      hub: 'an ornate gold lantern-boss medallion',
+      segTone: 'two alternating shades of glowing festive lantern-red (every gem dot and gold letter rimmed in bright gold so they stay readable on the red)',
+    },
+    scatterEn: 'round red-lantern icon (echoing the lantern prize wheel on the top screen)',
+  },
+  chef:         { label:'小廚神',  en:'a cute chibi little chef deity (小廚神) mascot — chubby cheerful child-god wearing a tall white-and-gold chef hat and a red-and-gold chef outfit with golden trim, rosy cheeks, holding up a big golden ladle, joyful proud pose' },   // 造型細節以 Nakai 後續提供的資料圖為準；有圖後可改走「附圖為準」條款
+  boy:          { label:'招財童子', en:'an adorable fortune-beckoning boy (Zhao Cai Tong Zi) — chubby cheerful child with twin hair buns tied in red ribbons, red silk vest with gold trim, hugging an oversized shining gold ingot' },
+  lionboy:      { label:'舞獅少年', en:'a lively lion-dance performer boy wearing a vibrant red-and-gold lion-dance costume, the ornate lion head worn atop his head like a hood with fluffy fur trims and golden bells, energetic festive pose' },
+  pirateking:   { label:'小海盜王', en:"a cute chibi God of Wealth (Cai Shen) reimagined as a LITTLE PIRATE KING — round chubby proportions, rosy cheeks, joyful grin, wearing a red-and-gold pirate captain's tricorn hat with a golden 發 emblem replacing the skull mark, a small red imperial-style coat with gold trim over pirate boots, one hand raised holding a shining gold ingot (yuanbao), a tiny golden cutlass tucked in his sash" },
+  goldpig:      { label:'富貴金豬', en:'a chubby adorable golden fortune pig mascot wearing a tiny red hat and a red collar with a golden bell, sitting atop a pile of gold coins with a blissful smile' },
+};
+function characterDesc() {
+  if (state.charKey === 'custom') {
+    const c = (state.charCustom || '').trim();
+    return c ? `a single main character described as: 「${c}」 (interpret this Chinese description faithfully)` : CHARACTERS.god_chibi.en;
+  }
+  return (CHARACTERS[state.charKey] || CHARACTERS.god_chibi).en;
+}
+function characterLabel() {
+  if (state.charKey === 'none') return '不需要（無角色）';
+  if (state.charKey === 'custom') return '自訂：' + ((state.charCustom || '').trim() || '（未輸入，暫用Q版財神）');
+  return (CHARACTERS[state.charKey] || CHARACTERS.god_chibi).label;
+}
+// HHFP 預設：特色＝機台三寶盆順序（UPSIZED粉／4 SPIN綠／MAGIC藍），名稱可再自改
+const HHFP_FEAT_DEFAULTS = { names: ['UPSIZED', '4 SPIN', 'MAGIC'], colors: ['pink', 'green', 'blue'] };
 const DEFAULT_KEYS = {
   3: ['blue', 'red', 'green'],
   4: ['blue', 'red', 'green', 'purple'],
@@ -514,6 +699,7 @@ const DEFAULT_KEYS = {
 // chibi：是否套 Q 版例外
 const THEMES = {
   tree: {
+    bottomSyms: ['a miniature golden money tree in a red pot', 'a stack of gold ingots (yuanbao) tied with red ribbon', 'an ancient square-holed gold coin with red tassel', 'a red silk envelope embossed with gold patterns', 'a jade-green leaf sprouting tiny gold coins'],
     zhNames3: ['招财','聚宝','纳福'],
     zhNames4: ['招财','聚宝','纳福','旺运'],
     zhNames5: ['招财','聚宝','纳福','旺运','鸿福'],
@@ -528,6 +714,7 @@ const THEMES = {
     chibi: false,
   },
   dragon: {
+    bottomSyms: ['a golden dragon head medallion', 'a flaming dragon pearl orb', 'a coiled jade dragon figurine', 'a golden dragon claw clutching a coin', 'a red-and-gold dragon-scale amulet'],
     zhNames3: ['智慧','神威','荣耀'],
     zhNames4: ['智慧','神威','荣耀','永恒'],
     zhNames5: ['智慧','神威','荣耀','永恒','雷霆'],
@@ -542,6 +729,7 @@ const THEMES = {
     chibi: false,
   },
   bowl: {
+    bottomSyms: ['an overflowing golden treasure bowl', 'a stack of gold ingots (yuanbao)', 'a ruby-studded ancient gold coin', 'a red coral branch on a gold stand', 'a glowing pearl on a red silk cushion'],
     zhNames3: ['夺宝','翻倍','收金'],
     zhNames4: ['夺宝','翻倍','收金','加乘'],
     zhNames5: ['夺宝','翻倍','收金','加乘','满盈'],
@@ -556,6 +744,7 @@ const THEMES = {
     chibi: false,
   },
   gong: {
+    bottomSyms: ['an ornate golden gong in a red frame', 'a gong mallet wrapped in red silk', 'a golden chime bell with tassel', 'a red drum with gold studs', 'a carved jade sound plaque'],
     zhNames3: ['金响','雷鸣','赐福'],
     zhNames4: ['金响','雷鸣','赐福','和鸣'],
     zhNames5: ['金响','雷鸣','赐福','和鸣','凯旋'],
@@ -570,6 +759,7 @@ const THEMES = {
     chibi: false,
   },
   chest: {
+    bottomSyms: ['an open golden treasure chest spilling coins', 'a brass lock with red tassel', 'a rolled antique treasure map', 'a cluster of glowing gems', 'an ornate antique gold key'],
     zhNames3: ['开宝','点金','丰收'],
     zhNames4: ['开宝','点金','丰收','高升'],
     zhNames5: ['开宝','点金','丰收','高升','满溢'],
@@ -584,6 +774,7 @@ const THEMES = {
     chibi: false,
   },
   caishen: {
+    bottomSyms: ['a smiling chibi God of Wealth medallion', 'a winged official hat in red and gold', 'a giant shining gold ingot', 'a red fortune pouch with gold drawstring', 'a golden ruyi scepter'],
     zhNames3: ['招财','进宝','纳福'],
     zhNames4: ['招财','进宝','纳福','添喜'],
     zhNames5: ['招财','进宝','纳福','添喜','鸿运'],
@@ -598,6 +789,13 @@ const THEMES = {
     chibi: true,
   },
   train: {
+    wheelSkin: {
+      body: "one giant ornate golden MAP COMPASS DIAL (an antique navigator's compass rose serving as the prize wheel, like the compass printed on a vintage treasure-route railway map)",
+      extra: "A bold golden compass rose is engraved across the dial: four large arrow points marking N / E / S / W at the outer rim plus four smaller diagonal points between them, over a faint antique-map texture of parchment tones; a slender golden compass needle lies under the glass of the center hub.",
+      hub: 'an ornate gold COMPASS-ROSE medallion with a slender needle',
+    },
+    scatterEn: "map-compass dial icon (echoing the compass prize wheel on the top screen)",
+    bottomSyms: ['a golden steam locomotive front with red trim', 'a train wheel with gold spokes', 'a red signal lantern', 'a golden steam whistle', 'a cargo car loaded with gold coins'],
     zhNames3: ['疾速','神力','财富'],
     zhNames4: ['疾速','神力','财富','荣耀'],
     zhNames5: ['疾速','神力','财富','荣耀','特快'],
@@ -614,6 +812,7 @@ const THEMES = {
     chibi: false,
   },
   firecracker: {
+    bottomSyms: ['a braided bundle of red firecrackers', 'a single giant firecracker with gold cap', 'a golden spark-burst rosette', 'a coiled red-gold fuse', 'a red gift box of crackers with gold seal'],
     zhNames3: ['旺爆','双响','加倍'],
     zhNames4: ['旺爆','连发','双响','加倍'],
     zhNames5: ['旺爆','连发','双响','齐鸣','加倍'],
@@ -630,6 +829,7 @@ const THEMES = {
     chibi: false,
   },
   bowlcracker: {
+    bottomSyms: ['an overflowing golden treasure bowl', 'a braided bundle of red firecrackers', 'a stack of gold ingots (yuanbao)', 'a golden spark-burst rosette', 'a ruby-studded ancient gold coin'],
     zhNames3: ['旺爆','双响','加倍'],
     zhNames4: ['旺爆','连发','双响','加倍'],
     zhNames5: ['旺爆','连发','双响','齐鸣','加倍'],
@@ -646,6 +846,7 @@ const THEMES = {
     chibi: false,
   },
   lion: {
+    bottomSyms: ['a full ornate lion-dance head', 'a lion eye-and-brow emblem with fur trim', 'a golden bell collar with red ribbon', 'a fluffy red-and-gold pom ball', 'a lion-dance drum with gold studs'],
     zhNames3: ['勇猛','纳福','必胜'],
     zhNames4: ['勇猛','纳福','必胜','荣耀'],
     zhNames5: ['勇猛','纳福','必胜','荣耀','凯旋'],
@@ -660,6 +861,7 @@ const THEMES = {
     chibi: false,
   },
   lantern: {
+    bottomSyms: ['a large round red palace lantern', 'a hexagonal golden palace lantern', 'a red lantern with long gold tassel', 'a golden candle-flame emblem', 'a mini string of three red lanterns'],
     zhNames3: ['光明','红火','闪耀'],
     zhNames4: ['光明','红火','闪耀','辉煌'],
     zhNames5: ['光明','红火','闪耀','辉煌','璀璨'],
@@ -674,6 +876,7 @@ const THEMES = {
     chibi: false,
   },
   pig: {
+    bottomSyms: ['a chubby golden fortune pig figurine', 'a smiling pig face with tiny red hat', 'a piglet sitting on a pile of coins', 'a red bib collar with golden bell', 'a gold coin trough filled with ingots'],
     zhNames3: ['招财','进宝','福气'],
     zhNames4: ['招财','进宝','福气','喜乐'],
     zhNames5: ['招财','进宝','福气','喜乐','金旺'],
@@ -686,6 +889,103 @@ const THEMES = {
     enSubject: 'adorable chubby GOLDEN fortune pigs — their entire bodies are polished shiny GOLD like glossy golden piggy-bank statues with candy-bright specular highlights, extremely round plump bodies with tiny legs, huge sparkling round eyes, rosy inner ears and a big cheerful open-mouth smile, each wearing a tiny traditional Chinese hat with golden coin ornaments dangling from it and small silk cuffs on the ankles, sitting on piles of shining gold coins and gold ingots',
     enScene: '{n} golden fortune pigs sitting side by side facing the viewer, every pig\'s body stays polished shiny GOLD, while each pig\'s tiny hat, ankle cuffs and the radiant glowing aura / colored rim-light surrounding it are rendered in its own signature color ({colorList}); the golden coin ornaments stay identical across all pigs',
     chibi: true,
+  },
+  pirate: {
+    bottomSyms: ['an ornate golden treasure chest overflowing with gold coins', 'a golden ship anchor wrapped in red silk ribbon', 'a gleaming golden cutlass with a ruby-set hilt', 'an antique brass telescope with gold banding', 'a rolled treasure map sealed with a red wax stamp'],
+    wheelSkin: {
+      body: "one giant ornate golden SHIP'S HELM (a ship's steering wheel serving as the prize wheel)",
+      extra: "Eight to ten carved golden handle pegs protrude from the outer rim like a real ship's helm; segments alternate warm cream and pale-gold tones like polished ship-deck wood banded in gold.",
+      hub: 'an ornate gold COMPASS medallion',
+    },
+    scatterEn: "ship's-helm icon (echoing the helm prize wheel on the top screen)",
+    zhNames3: ['夺宝','藏金','扬帆'],
+    zhNames4: ['夺宝','藏金','扬帆','满舱'],
+    zhNames5: ['夺宝','藏金','扬帆','满舱','称王'],
+    splitNoun: '海盜寶箱（含半開箱蓋、署名色箱身箱蓋與滿箱金幣元寶）',
+    label: '海盜寶藏',
+    emoji: '🏴‍☠️',
+    names3: ['PLUNDER', 'TREASURE', 'VOYAGE'],
+    names4: ['PLUNDER', 'TREASURE', 'VOYAGE', 'BOUNTY'],
+    names5: ['PLUNDER', 'TREASURE', 'VOYAGE', 'BOUNTY', 'ARMADA'],
+    enSubject: "ornate golden treasure chests standing on ship-deck planks, lids half-open and overflowing with shining gold coins and gold ingots (yuanbao), golden ornamental banding and rivets on every chest, a red silk ribbon draped over each lid",
+    enScene: "{n} golden treasure chests arranged side by side facing the viewer on wooden deck planks, each chest's body and lid decorated in its own signature color ({colorList}) with golden banding, the overflowing treasure staying identical across all chests",
+    chibi: false,
+  },
+  hotpot: {
+    bottomSyms: ['an ornate brass chimney hotpot', 'a golden ladle with red silk knot', 'a cluster of glossy red chili peppers', 'a bamboo steamer basket with steaming dumplings', 'a golden burner flame emblem'],
+    zhNames3: ['沸腾','鲜香','团圆'],
+    zhNames4: ['沸腾','鲜香','团圆','丰盛'],
+    zhNames5: ['沸腾','鲜香','团圆','丰盛','旺火'],
+    splitNoun: '中式銅火鍋（含中央煙囪、鍋身、滾沸湯面與滿鍋金元寶）',
+    label: '中式火鍋',
+    emoji: '🍲',
+    names3: ['SIZZLE', 'FEAST', 'REUNION'],
+    names4: ['SIZZLE', 'FEAST', 'REUNION', 'PLENTY'],
+    names5: ['SIZZLE', 'FEAST', 'REUNION', 'PLENTY', 'BLAZE'],
+    enSubject: 'ornate golden Chinese hotpots (traditional Beijing-style brass chimney hotpots — a wide round pot body with a tall central chimney funnel rising from the middle), each pot filled with bubbling golden broth where shining gold coins and gold ingots (yuanbao) bob and pile up like festive ingredients, swirling auspicious steam rising from the broth and the chimney top, red silk tassels hanging from the side handles, each pot standing on an ornate golden burner base with warm glowing flames',
+    enScene: '{n} chimney hotpots arranged side by side facing the viewer, each pot\'s body and chimney decorated in its own signature color ({colorList}) with golden ornamental patterns, golden broth and treasure staying identical across all pots, steam swirls tinted faintly with each pot\'s signature color',
+    chibi: false,
+  },
+};
+
+// ---------- 五階累積軸（每主題：本體隨階段「變大」＋ 什麼「越堆越多」；1=最低階但不空曠、4=提案現狀、5=胖滿塞滿畫面） ----------
+// grow：本體變大＋累積增多的主題細則；identity：鎖定不變的長相與配件（體型可變、長相不可變）
+const ACCUM_AXES = {
+  tree: {
+    grow: '每棵招財樹全株隨階段等比變大，同時樹冠銅錢越來越密、腳下聚寶盆內金幣越堆越高。第1階：中型樹、樹冠已有基本銅錢密度、盆內金幣鋪滿一層——畫面不空曠；第5階：巨樹參天、樹冠銅錢滿載無縫、相鄰樹冠幾乎相接、盆金滿溢連成金幣海淹滿底部。',
+    identity: '樹形輪廓特徵、盆的造型與紋樣、各樹的署名色',
+  },
+  dragon: {
+    grow: '每枚龍紋圓章隨階段等比變大，同時周圍光焰與金光越來越盛。第1階：中型圓章、已有完整一圈光焰——畫面不空曠；第5階：巨大圓章彼此幾乎相貼、光焰熊熊滿框、金光四射。',
+    identity: '盤龍浮雕造型、圓章與方孔樣式、各章的署名色',
+  },
+  bowl: {
+    grow: '每個聚寶盆隨階段等比變大，同時盆內金幣山越堆越高。第1階：中型盆、盆內金幣已堆過半——畫面不空曠；第5階：巨盆金山高聳遠超盆緣、盆與盆幾乎相貼、傾瀉的金幣連成金幣海淹滿底部。',
+    identity: '盆身造型、盆緣紋樣、各盆的署名色',
+  },
+  gong: {
+    grow: '每面金鑼隨階段等比變大，同時鑼面光暈與聲波光環越來越多、越亮。第1階：中型鑼、已有一圈光暈——畫面不空曠；第5階：巨鑼幾乎相貼、多重金色聲波環滿框、鑼面炸亮。',
+    identity: '鑼面吉祥字與刻紋、龍首掛架造型、流蘇、各鑼的署名色',
+  },
+  chest: {
+    grow: '每個財寶箱隨階段等比變大，同時箱蓋越開越大、湧出的金幣與光芒越來越多。第1階：中型箱、蓋已半開透出金光、箱前已有金幣——畫面不空曠；第5階：巨箱蓋近全開、金光噴薄、湧出的金瀑彼此相連成金幣海淹滿底部。',
+    identity: '箱體造型、金屬包角與雲紋雕飾、各箱的署名色',
+  },
+  caishen: {
+    grow: '每尊小財神隨階段等比變大，同時腳下金元寶堆越堆越高、越廣。第1階：中型財神、腳下已有一圈明顯元寶堆——畫面不空曠；第5階：巨大財神群幾乎肩並肩相貼、元寶山連成一片高及腰身、金光滿溢淹滿底部。',
+    identity: '角色長相——臉、表情、皇冠、姿勢、金袍設計完全不變（只變體型大小）',
+  },
+  train: {
+    grow: '每台火車頭隨階段等比變大，同時排障器上的金元寶越堆越滿、頭燈光芒與彩色蒸汽越來越盛。第1階：中型車頭、頭燈已亮、排障器已有元寶——畫面不空曠；第5階：巨大車頭幾乎相貼、元寶滿載欲墜、頭燈大盛、蒸汽澎湃滿框。',
+    identity: '車頭造型、金飾徽章、車廂樣式、各車的署名色',
+  },
+  firecracker: {
+    grow: '每串爆竹隨階段等比變大變長，同時底部炸開的火花越來越盛。第1階：中型炮串、已點燃、底部已有基本火花——畫面不空曠；第5階：粗長炮串幾乎撐滿畫面高度、彼此靠近、白金火花光雨滿框四濺。',
+    identity: '頂端金神獸與八角名牌造型、炮身節構樣式、各串的署名色',
+  },
+  bowlcracker: {
+    grow: '每個聚寶盆隨階段等比變大，同時盆內金幣山越堆越高、插立的爆竹火箭越來越多。第1階：中型盆、金幣已堆過半、已插數支火箭——畫面不空曠；第5階：巨盆金山相連、火箭簇擁林立滿框、金幣海淹滿底部。',
+    identity: '盆身造型與金色飾邊、火箭樣式、各盆的署名色',
+  },
+  lion: {
+    grow: '每顆舞獅頭隨階段等比變大，同時身後光環與額鏡、金鈴的閃耀越來越強。第1階：中型獅頭、已有光環與基本金飾光——畫面不空曠；第5階：巨大獅頭幾乎相貼、光環全開、金飾光芒滿框四射。',
+    identity: '獅頭造型、表情、絨毛與頂綵球樣式、各獅的署名色',
+  },
+  lantern: {
+    grow: '每串燈籠隨階段等比變大，同時燈籠內光與外圍光暈越來越亮。第1階：中型燈籠串、已點亮透出暖光——畫面不空曠；第5階：巨大燈籠串幾乎相貼、通體透亮、光暈飽滿連成一片滿框。',
+    identity: '燈籠飽滿形狀、每串的燈籠數量、金蓋金座與流蘇樣式、各串的署名色',
+  },
+  pig: {
+    grow: '每隻金豬隨階段等比變大變胖，同時腳下金幣與金元寶越堆越高、越廣。第1階：中型豬、已坐在一層明顯的金幣元寶堆上——畫面不空曠；第5階：每隻豬都圓胖巨大、肩並肩幾乎相貼塞滿畫面、腳下金幣元寶連成一片金幣海淹滿底部。',
+    identity: '小豬長相——姿態、表情、小帽與腳踝套設計完全不變（只變體型大小）',
+  },
+  pirate: {
+    grow: '每個寶箱隨階段等比變大，同時箱內金幣元寶越堆越高、滿溢越多。第1階：中型箱、箱蓋半開、箱內金幣已鋪滿一層——畫面不空曠；第5階：巨箱幾乎相貼、金山高過箱蓋、金幣瀑布傾瀉連成金幣海淹滿甲板。',
+    identity: '寶箱造型——箱體比例、金屬包邊鉚釘、鎖扣與箱蓋設計完全不變（只變大小與箱內金銀多寡）',
+  },
+  hotpot: {
+    grow: '每座火鍋隨階段等比變大，同時鍋內金幣金元寶越堆越滿、湯面越滾越沸、蒸氣越來越旺。第1階：中型鍋、湯已滾沸、鍋內金元寶鋪滿一層——畫面不空曠；第5階：巨鍋幾乎相貼、金元寶堆高滿溢出鍋緣、蒸氣如祥雲滿框、爐火熊熊。',
+    identity: '鍋具造型——中央煙囪、鍋身紋樣、提耳流蘇與爐座設計完全不變（只變大小與鍋內容物多寡）',
   },
 };
 
@@ -812,11 +1112,47 @@ function renderPreview() {
     state.bg === 'nature' ? 'linear-gradient(180deg, #f5c86a 0%, #e89a3a 45%, #b85a20 100%)'
     : state.bg === 'sky' ? 'linear-gradient(180deg, #6ab8f0 0%, #a8d8f8 60%, #d8ecfa 100%)'
     : state.bg === 'papercut' ? 'radial-gradient(circle at 20% 30%, rgba(120,20,15,.8) 0 8%, transparent 9%), radial-gradient(circle at 80% 30%, rgba(120,20,15,.8) 0 8%, transparent 9%), radial-gradient(circle at 50% 75%, rgba(120,20,15,.8) 0 10%, transparent 11%), linear-gradient(160deg, #5a1512, #350c0a)'
+    : state.bg === 'lanternstreet' ? 'radial-gradient(circle at 15% 35%, rgba(255,90,60,.75) 0 4%, transparent 6%), radial-gradient(circle at 30% 28%, rgba(255,90,60,.6) 0 3%, transparent 5%), radial-gradient(circle at 85% 35%, rgba(255,90,60,.75) 0 4%, transparent 6%), radial-gradient(circle at 70% 28%, rgba(255,90,60,.6) 0 3%, transparent 5%), radial-gradient(ellipse at 50% 60%, rgba(255,150,60,.4) 0%, transparent 55%), linear-gradient(180deg, #141a3a 0%, #24123a 60%, #3a1020 100%)'
+    : state.bg === 'goldship' ? 'radial-gradient(ellipse at 50% 45%, rgba(255,220,120,.75) 0%, transparent 50%), linear-gradient(180deg, #f2b13d 0%, #d98a1f 45%, #1e4d6b 46%, #16374d 100%)'
+    : state.bg === 'kungfukitchen' ? 'radial-gradient(ellipse at 5% 70%, rgba(255,160,40,.8) 0%, transparent 40%), radial-gradient(ellipse at 95% 70%, rgba(255,160,40,.8) 0%, transparent 40%), radial-gradient(ellipse at 50% 55%, #b85a10 0%, #5a1e08 60%, #2a0e05 100%)'
     : state.bg === 'palace' ? 'linear-gradient(90deg, #6a2a10 0%, #8a4a18 8%, #4a1808 15%, #3a1005 50%, #4a1808 85%, #8a4a18 92%, #6a2a10 100%), radial-gradient(ellipse at 50% 55%, #c98a3a 0%, #7a3a10 55%, #3a1005 100%)'
     : 'linear-gradient(160deg, #4a1210, #2a0a08)';
 
   // 彩金名稱 logo（簡體）
   document.getElementById('pvLogo').textContent = toSimplified(state.gameTitle || '');
+
+  // HHFP：輪盤＋主角 wireframe 佔位（純示意）
+  const topScreen = document.getElementById('topScreen');
+  topScreen.style.position = 'relative';
+  let pvWheel = document.getElementById('pvWheel');
+  let pvChar = document.getElementById('pvChar');
+  if (state.gameplay === 'hhfp') {
+    if (!pvWheel) {
+      pvWheel = document.createElement('div');
+      pvWheel.id = 'pvWheel';
+      pvWheel.style.cssText = 'position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);width:58%;aspect-ratio:1;border-radius:50%;border:3px solid rgba(255,213,79,.55);box-shadow:inset 0 0 0 14px rgba(255,213,79,.18), inset 0 0 0 15px rgba(255,213,79,.4);background:repeating-conic-gradient(rgba(255,240,200,.10) 0 20deg, rgba(255,213,79,.16) 20deg 40deg);pointer-events:none;z-index:0;display:flex;align-items:center;justify-content:center;';
+      pvWheel.innerHTML = '<div style="width:26%;aspect-ratio:1;border-radius:50%;background:rgba(255,213,79,.3);border:2px solid rgba(255,213,79,.6);display:flex;align-items:center;justify-content:center;font-weight:bold;color:#ffd54f;font-size:13px">×2</div>';
+      topScreen.appendChild(pvWheel);
+    }
+    if (state.charKey === 'none') { if (pvChar) { pvChar.remove(); pvChar = null; } }
+    else {
+    if (!pvChar) {
+      pvChar = document.createElement('div');
+      pvChar.id = 'pvChar';
+      pvChar.style.cssText = 'position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);z-index:1;pointer-events:none;text-align:center;color:#ffe9a8;font-size:12px;text-shadow:0 1px 3px rgba(0,0,0,.6)';
+      topScreen.appendChild(pvChar);
+    }
+    pvChar.innerHTML = '<div style="font-size:34px">🧧</div><div>' + characterLabel() + '</div>';
+    }
+    // 疊序示意：JP／Logo／特色物都在輪盤之上（輪盤 z=0、主角 z=1、其餘 z=2）
+    ['pvGrand','pvJpRow2','pvJpRow3','pvLogo','pvFeat'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.style.position = 'relative'; el.style.zIndex = '2'; }
+    });
+  } else {
+    if (pvWheel) pvWheel.remove();
+    if (pvChar) pvChar.remove();
+  }
 
   const featZone = document.getElementById('pvFeat');
   featZone.innerHTML = '';
@@ -906,9 +1242,88 @@ function renderPrompt() {
 `Cute cartoon chibi mascot style but maintaining painterly 3D rendering with brilliant bright yellow-gold metallic surfaces and blazing near-white specular highlights, deep crimson red and bright gold dominant color palette (about 80% red-and-gold), festive auspicious Chinese casino aesthetic, bright high-key lighting, high saturation, high contrast, smooth rounded gradients, zero noise or speckle, professional digital painting. Shadows use deep warm red-orange family tones, never pure black or gray. NOT flat vector, NOT watercolor, NOT photorealistic, NOT antique or vintage toning.`;
   }
 
+  // ---------- HHFP 玩法模板：五層堆疊（背景→雙層輪盤→JP→主角→特色物） ----------
+  const hhfp = state.gameplay === 'hhfp';
+  const wheelClause = hhfp ? (() => {
+    const dotColors = colors.map(c => c.en).join(' / ');
+    const cw = (CHARACTERS[state.charKey] || {});
+    const ws = cw.wheelSkin || t.wheelSkin || {};   // 主角輪盤造型優先於主題
+    return `LAYER 2 — WHEEL SYSTEM (the signature gameplay centerpiece — a DUAL-LAYER PRIZE WHEEL, drawn BEHIND the jackpot banners): ${ws.body || 'one giant ornate golden prize wheel'} placed at the CENTER of the screen as the grand backdrop medallion, occupying roughly 55–60% of the screen height; its upper arc rises up BEHIND the jackpot banner strip.${ws.extra ? ' ' + ws.extra : ''} The wheel has TWO clearly separated concentric rings: an OUTER ring divided into ${state.wheelOut} segments and an INNER ring divided into ${state.wheelIn} segments — segments alternate ${ws.segTone || 'warm cream and pale-gold tones'}, separated by bold ornate gold spokes, the outer rim studded with glowing golden marquee lamps. Most segments carry one large glossy gem dot in the three feature signature colors (${dotColors}, matching the feature totems in front); a few segments instead carry short bold gold letters "MAJOR", "GRAND" and "UP". The center hub is ${ws.hub || 'an ornate gold medallion'} showing a large "×2" multiplier numeral. Every wheel element stays BOLD and readable when the image is scaled to 1/3 — NO fine lattice, NO tiny text, NO thin decorative lines.${(state.wheelOut>9||state.wheelIn>9)? ' With this many segments each wedge is narrow — keep exactly ONE bold element per segment (one gem dot OR one short word), nothing more.' : ''}`;
+  })() : '';
+  const noChar = state.charKey === 'none';
+  const wildSymClause = (state.gameplay === 'hhfp' && !noChar)
+    ? `WILD symbol: the main character (${characterDesc().split(' — ')[0]}) framed in an ornate gold medallion with a bold "WILD" banner — the SAME character as the top screen.`
+    : `WILD symbol: the theme's signature object framed in an ornate gold medallion with a bold "WILD" banner.`;
+  const charClause = (hhfp && !noChar)
+    ? `LAYER 4 — MAIN CHARACTER (single hero character): ${characterDesc()}. The character stands at the visual center IN FRONT of the wheel hub, about 40–45% of the screen height, facing the viewer, rendered in exactly the same painterly 3D style and palette as everything else. The character may slightly overlap the bottom edge of the jackpot banner strip but must NOT cover any jackpot title or amount.`
+    : '';
+  const depthClause = hhfp
+    ? (noChar
+      ? `DEPTH STACKING (very important — four layers, back to front): (1) background, (2) the dual-layer prize wheel, (3) jackpot banners and the game logo, (4) the three feature totems in the very front. There is NO character in this composition — the wheel hub stays fully visible at the center. The three feature totems form the FRONT ROW along the bottom edge, slightly larger to anchor the visual weight, their tops partially overlapping the wheel's lower half; the wheel's upper arc disappears behind the jackpot banner strip. Every layer must be clearly readable — overlaps are partial, never fully hiding any element.`
+      : `DEPTH STACKING (very important — five layers, back to front): (1) background, (2) the dual-layer prize wheel, (3) jackpot banners and the game logo, (4) the single main character, (5) the three feature totems in the very front. The three feature totems form the FRONT ROW along the bottom edge, partially overlapping the character's lower body; the character partially overlaps the wheel; the wheel's upper arc disappears behind the jackpot banner strip. Every layer must be clearly readable — overlaps are partial, never fully hiding any element.`)
+    : '';
+
   // 畫面規格
   let sizeSpec, screens;
-  if (state.scope === 'top') {
+  if (hhfp) {
+    const topScreenBody =
+`This is the TOP SCREEN of a casino slot machine cabinet — the jackpot & feature display for a DUAL-LAYER WHEEL slot game. The screen is a ${noChar ? 'FOUR-LAYER' : 'FIVE-LAYER'} stacked composition (LAYER 1 = the background, described in the BACKGROUND clause below; layers listed here in top-to-bottom reading order, each tagged with its depth layer):
+
+LAYER 3 — JACKPOT BANNERS (compact strip, top ~20% of the frame — keep all banners SLIM and space-efficient, stacked tightly):
+${jpDesc}
+
+LAYER 3 — GAME LOGO (same layer as the banners): an ornate golden game logo placed between or beside the jackpot banners, displaying the simplified Chinese title "${titleS}" in bold golden 3D calligraphy with red trim, with its pinyin romanization in small gold letters underneath.
+
+${wheelClause}
+
+${charClause}
+
+LAYER ${noChar ? '4' : '5'} — FEATURE TOTEMS (the front-most row along the bottom of the frame):
+${scene}. ${redRule} ${namePlacement}
+
+${depthClause}
+
+Do NOT add any tagline, slogan or text strip at the bottom of the screen — the feature totems extend to the bottom edge.`;
+    if (state.scope === 'top') {
+      sizeSpec = 'Create ONE image, landscape 1920×1080 (16:9).';
+      screens = topScreenBody;
+    } else {
+      sizeSpec = 'Create ONE image, portrait 1920×2160 — two stacked 1920×1080 screens (top screen above, bottom screen below), like a real dual-screen slot cabinet.';
+      screens =
+`TOP SCREEN (upper half, 1920×1080) — ${topScreenBody}
+
+BOTTOM SCREEN (lower half, 1920×1080) — the base game reels, living in the SAME theme world as the top screen:
+
+FRAME GEOMETRY of the bottom screen (strict — this matches the real game interface, follow the numbers):
+  * The ornate gold reel frame has a 1796:931 aspect ratio, scaled to the full 1920 width (frame = 1920×995), aligned to the TOP of the bottom screen; the remaining ~85px strip below the frame is dark background hosting the UI bar.
+  * Inside the frame, the symbol grid area starts 6.68% from the frame's left edge and 7.95% from its top, spanning 86.64% of the frame's width and 85.07% of its height.
+  * The grid is 5 reels × 3 rows. Between adjacent reels runs a thin, perfectly straight vertical gold divider bar; reel-to-divider width ratio is 300:14 (each reel ≈321px wide, each divider ≈15px, each row ≈282px tall). Dividers are continuous from grid top to grid bottom and evenly spaced.
+  * Each cell is a landscape rectangle of roughly 300:264 proportion. Every symbol is centered in its cell with a small breathing margin and never touches the dividers — only the tall WILD may break its cell upward (rule below), never sideways across a divider.
+
+SYMBOL SET (drawn from the top screen's theme world, all in the same painterly 3D style and red-gold palette):
+  * FIVE premium symbols (highest to lowest): ${(t.bottomSyms||[]).map((s,i)=>'M'+(i+1)+' = '+s).join('; ')}.
+  * ${wildSymClause} The WILD may also appear as a TALL version spanning two vertically adjacent cells as one continuous artwork.
+  * Low symbols: golden A/K/Q/J/9/8 card letters in oriental calligraphy style with theme-matching material trims.
+  * Score orbs: glossy round score orbs in the three feature signature colors (${colors.map(c => c.en).join(' / ')}), each showing a small gold number.
+  * Scatter symbols: a small golden ${(CHARACTERS[state.charKey]||{}).scatterEn || t.scatterEn || 'wheel-scatter star icon echoing the dual-layer wheel above'}, and a RED variant of the same scatter.
+
+EXACT BOARD LAYOUT (5 reels × 3 rows — draw EXACTLY this arrangement so every prize type is showcased):
+  * REEL 1 (leftmost): the SAME M1 symbol filling ALL THREE cells as a full-column stack — three identical M1 artworks stacked seamlessly.
+  * REEL 2: top = M2; middle = score orb in ${colors[0].en}; bottom = golden "A" letter.
+  * REEL 3 (center): top = M3; middle + bottom = ONE tall WILD artwork spanning both cells, bottom edge aligned to the cell bottom, its top breaking upward OUT of the cell frame (frame-break, slightly overlapping the row above).
+  * REEL 4: top = the golden scatter symbol; middle = M4; bottom = score orb in ${colors[1].en}.
+  * REEL 5 (rightmost): top = the RED scatter symbol; middle = M5; bottom = score orb in ${colors[2].en}.
+
+PLACEMENT RULES (these mirror the real game logic — do not violate them):
+  * M1 only ever appears as a full-column 3-stack, never as a single cell.
+  * Tall WILDs are bottom-aligned and may overflow upward beyond their cells; at most ONE wild-family symbol per reel, and wilds only appear on the middle three reels (2/3/4).
+  * At most one scatter symbol per reel; the red scatter appears only on reel 5.
+  * Every symbol stays crisp and readable at 1/3 scale — bold silhouettes, no fine clutter.
+- A dark UI bar across the very bottom showing "CREDIT", "BET", "WIN" fields with gold numerals.
+
+THEME CONSISTENCY (very important): the TOP and BOTTOM screens must read as ONE game — same theme world, same palette, same rendering style, same lighting. The top screen's feature totems, wheel and${noChar ? '' : ' character and'} theme objects visibly reappear as the bottom screen's premium symbols; nothing on either screen may introduce a different theme.`;
+    }
+  } else if (state.scope === 'top') {
     sizeSpec = 'Create ONE image, landscape 1920×1080 (16:9).';
     screens =
 `This is the TOP SCREEN of a casino slot machine cabinet — the jackpot & feature display. Layout from top to bottom:
@@ -937,9 +1352,14 @@ ${scene}. ${redRule} ${namePlacement}
 
 Do NOT add any tagline, slogan or text strip at the bottom of the top screen — the feature totems extend to the bottom edge of the top screen.
 
-BOTTOM SCREEN (lower half, 1920×1080) — the base game reels:
-- A 5-column × 3-row reel grid framed in ornate gold, filled with themed slot symbols (golden auspicious creatures, Chinese coins, red K/A/J/10 card letters in oriental calligraphy style) matching the same theme and rendering style.
-- A dark UI bar across the very bottom showing "CREDIT", "BET", "WIN" fields with gold numerals.`;
+BOTTOM SCREEN (lower half, 1920×1080) — the base game reels, living in the SAME theme world as the top screen:
+- A 5-column × 3-row reel grid framed in ornate gold. The reel symbols are drawn from the top screen's theme world:
+  * FIVE premium symbols (highest to lowest): ${(t.bottomSyms||[]).map((s,i)=>'M'+(i+1)+' = '+s).join('; ')} — each rendered in the same painterly 3D style and red-gold palette as the top screen.
+  * WILD symbol: the theme's signature object framed in an ornate gold medallion with a bold "WILD" banner.
+  * Low symbols: red K/A/J/10 card letters in oriental calligraphy style with theme-matching material trims.
+- A dark UI bar across the very bottom showing "CREDIT", "BET", "WIN" fields with gold numerals.
+
+THEME CONSISTENCY (very important): the TOP and BOTTOM screens must read as ONE game — same theme world, same palette, same rendering style, same lighting. The top screen's theme objects visibly reappear as the bottom screen's premium symbols; nothing on either screen may introduce a different theme.`;
   }
 
   const prompt =
@@ -960,6 +1380,7 @@ ${BG_CLAUSES[state.bg]}
 ${state.lang === 'zh' ? 'TEXT LANGUAGE (very important): ALL text labels on screen — jackpot tier titles and feature names — are in SIMPLIFIED CHINESE characters (numerals and currency symbol stay as-is). Every Chinese character must be rendered accurately, completely and legibly in ornate golden 3D lettering; the labels are intentionally short (2-3 characters each) to keep the characters large and correct.\n\n' : ''}COMPOSITION RULES: centered symmetrical layout, the feature totems occupy the dominant area, every text element uses metallic gold 3D lettering with red outlines.${t.compositionRule ? ' ' + t.compositionRule : ''} Everything must look like a premium Asian-market casino slot machine screen.`;
 
   document.getElementById('promptOut').value = prompt;
+  renderAccumPrompt(); // 五階累積 prompt 跟著同步
   renderSplitPrompt(); // 拆圖 prompt 跟著同步
   renderLangPrompt();  // 換語系 prompt 跟著同步
 }
@@ -984,6 +1405,43 @@ function bindToggle(rowId, onPick) {
   });
 }
 
+// ---------- HHFP 玩法模板：切換時鎖定/解鎖與帶入預設 ----------
+function applyGameplayUI() {
+  const hhfp = state.gameplay === 'hhfp';
+  ['jpCountRow', 'tierRow', 'featCountRow'].forEach(id =>
+    document.getElementById(id).classList.toggle('row-locked', hhfp));
+  document.getElementById('charSection').style.display = hhfp ? '' : 'none';
+  document.getElementById('wheelSegBox').style.display = hhfp ? '' : 'none';
+  if (hhfp) {
+    state.jpCount = 4;
+    state.tierKeys = ['GRAND', 'MAJOR', 'MINOR', 'MINI'];
+    setActive('jpCountRow', 4);
+    syncTierChips();
+    document.getElementById('brandJpField').style.display = 'none';
+    state.featCount = 3;
+    setActive('featCountRow', 3);
+    state.featNames = HHFP_FEAT_DEFAULTS.names.slice();
+    state.featColorKeys = HHFP_FEAT_DEFAULTS.colors.slice();
+    rebuildFeatNames(false);
+  }
+  document.getElementById('charCustomField').style.display =
+    (hhfp && state.charKey === 'custom') ? 'flex' : 'none';
+}
+bindToggle('gameplayRow', v => {
+  state.gameplay = v === 'hhfp' ? 'hhfp' : 'generic';
+  applyGameplayUI();
+});
+bindToggle('wheelOutRow', v => { state.wheelOut = +v; });
+bindToggle('wheelInRow', v => { state.wheelIn = +v; });
+bindToggle('charRow', v => {
+  state.charKey = v;
+  document.getElementById('charCustomField').style.display = v === 'custom' ? 'flex' : 'none';
+});
+document.getElementById('charCustomInput').addEventListener('input', () => {
+  state.charCustom = document.getElementById('charCustomInput').value;
+  renderPreview(); renderPrompt();
+});
+
 bindToggle('jpCountRow', v => {
   state.jpCount = +v;
   state.tierKeys = DEFAULT_TIER_KEYS[state.jpCount].slice();
@@ -991,13 +1449,18 @@ bindToggle('jpCountRow', v => {
   document.getElementById('brandJpField').style.display =
     state.tierKeys.includes('DRAGON8') ? 'flex' : 'none';
 });
+// HHFP 模式：主題／語言只管造型與標題語系，特色名維持玩法名（UPSIZED/4 SPIN/MAGIC 或使用者自改的），不被重設
+function rebuildFeatNamesRespectGameplay() {
+  if (state.gameplay === 'hhfp') rebuildFeatNames(false);
+  else rebuildFeatNames(true);
+}
 bindToggle('featCountRow', v => {
   state.featCount = +v;
-  rebuildFeatNames(true); // 換數量時重帶預設名
+  rebuildFeatNames(true); // 換數量時重帶預設名（HHFP 下此列被鎖定，不會進來）
 });
 bindToggle('themeRow', v => {
   state.theme = v;
-  rebuildFeatNames(true); // 換主題時重帶預設名
+  rebuildFeatNamesRespectGameplay(); // 換主題時重帶預設名；HHFP 下保留玩法名
 });
 bindToggle('scopeRow', v => { state.scope = v; });
 bindToggle('densityRow', v => { state.density = v; });
@@ -1028,7 +1491,7 @@ bindToggle('splitModeRow', v => { state.splitMode = v; });
 
 bindToggle('langRow', v => {
   state.lang = v;
-  rebuildFeatNames(true); // 切語言重帶該語言預設名
+  rebuildFeatNamesRespectGameplay(); // 切語言重帶該語言預設名；HHFP 下保留玩法名
 });
 
 document.getElementById('currency').addEventListener('input', () => { renderPreview(); renderPrompt(); });
@@ -1041,6 +1504,15 @@ document.getElementById('gameTitle').addEventListener('input', () => {
 // 複製
 document.getElementById('copyLangBtn').addEventListener('click', async () => {
   const ta = document.getElementById('langPromptOut');
+  try { await navigator.clipboard.writeText(ta.value); }
+  catch (e) { ta.select(); document.execCommand('copy'); }
+  const toast = document.getElementById('toast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1600);
+});
+
+document.getElementById('copyAccumBtn').addEventListener('click', async () => {
+  const ta = document.getElementById('accumPromptOut');
   try { await navigator.clipboard.writeText(ta.value); }
   catch (e) { ta.select(); document.execCommand('copy'); }
   const toast = document.getElementById('toast');
@@ -1121,6 +1593,66 @@ ${tableLines}
   document.getElementById('langPromptOut').value = prompt;
 }
 
+// ---------- 五階累積感 Prompt 生成 ----------
+function renderAccumPrompt() {
+  const t = themeData();
+  const focalIdx = state.featCount === 4 ? 1 : Math.floor(state.featCount / 2);
+  const focalPosZh = state.featCount === 4 ? '左數第 2（視覺重心）' : '正中央';
+  const ax = ACCUM_AXES[state.theme] || { grow: '每個主題物隨階段等比變大，身上與腳下的金幣財寶越堆越多。', identity: '主題物的造型、配色與配件' };
+  const nZh = {3:'三',4:'四',5:'五'}[state.featCount];
+  // 依組數的畫面佔比補償：組數越少，個體要越大、財寶要加量，才不會讓畫面空
+  const FILL_BY_COUNT = {
+    3: '本畫面只有三組主題物——留空風險最高：第 1 階每個主題物的體型與腳下財寶都要「加量」補足畫面（個體比多組時更大更胖、財寶堆更滿），不可顯得稀疏；第 5 階平均每個主題物約佔畫面寬度三分之一，三個巨物肩並肩合力撐滿畫面左右，中間不可留出大段空隙。',
+    4: '本畫面有四組主題物：第 5 階平均每個主題物約佔畫面寬度四分之一，彼此相貼撐滿畫面左右；第 1 階仍須維持畫面飽滿、不顯稀疏。',
+    5: '本畫面有五組主題物：第 5 階彼此緊貼、平均每個主題物約佔畫面寬度五分之一，撐滿畫面左右；第 1 階仍須維持畫面飽滿、不顯稀疏。',
+  };
+
+  const prompt =
+`請在「同一個對話」中（提案畫面已生成之後），依據本對話記憶製作「五階累積狀態圖」——共 5 張完整畫面。
+
+【工作模式】
+這是同脈絡重繪：以提案畫面為基準，重繪出 5 張「與提案畫面相同尺寸、相同構圖」的完整畫面，呈現畫面中 ${nZh} 個${t.label}主題物「累積量依序遞增」的五個階段。一次共 5 張、每張一個階段；不要把多個階段放進同一張圖，也不要產出總表或九宮格。
+
+【階段基準（極重要）】
+* 提案畫面的現狀＝第 4 階。
+* 第 5 階必須明顯比第 4 階（提案）再大一級——這是最終滿載型態。
+* 第 3、2、1 階從第 4 階依序遞減。
+* 五階級距要均勻拉開：任兩個相鄰階段並排時，都要一眼看得出主題物明顯變大、財寶明顯變多——不可有兩階看起來差不多。
+
+【首末階錨定（極重要，常見失敗就在這兩階）】
+* 第 1 階＝最低階，但「絕不空曠」：主題物完整、已有基本財寶堆與光效，畫面依然飽滿好看；體型約為第 5 階的一半，不可縮成小不點、不可讓畫面大片留空。
+* 第 5 階＝滿載：所有主題物都圓胖巨大、幾乎塞滿整個畫面——肩並肩相貼或輕微交疊、合計寬度撐滿畫面左右、財寶連成一片淹到名稱底板後緣，畫面滿到快要溢出的程度。
+* ${FILL_BY_COUNT[state.featCount]}
+
+【累積軸——五張圖之間，只有這件事隨階段改變】
+全部 ${nZh} 個主題物一起長大：每一階「主題物本體等比變大」＋「財寶／光芒累積增多」同時發生。主題細則：
+${ax.grow}
+
+【成長方式】
+* 主題物以「與底座的接觸點」為錨往上、往外長大：底部始終貼住底座頂面，體型只往上、往外擴；名稱底板與底座本身的大小、位置固定不動。
+* 每一階都維持原本的大小關係：${focalPosZh}的主題物永遠是同階中最大、最亮的焦點。
+* 到了高階段，主題物與金幣堆可以彼此靠近、甚至輕微交疊，畫面越來越滿——但不可遮住 JP 彩金數字、遊戲 Logo 與名稱底板上的文字。
+
+【底座銜接（極重要，五張每一張都要檢查）】
+* 提案畫面中每個主題物都穩穩「坐」在自己的底座平台上、名稱底板嵌在底座前緣——這個結構關係在五個階段中一張都不能斷。
+* 主題物底部必須與底座頂面實際接觸相連：不可懸空、不可出現縫隙、不可漂浮在底板上方、底座平台不可消失或被畫成分離的一條。
+* 堆疊關係固定：底座平台在最下、財寶堆坐在平台頂面上、主題物坐在財寶堆／平台上，三者之間有自然的接觸與落影。
+* 財寶增多時可以垂掛過底座前緣、從邊緣灑落，但底座與名稱底板本身不可變形、不可被吞沒，名牌文字保持完整可讀。
+* 縮小的低階段同樣底部貼住底座頂面——是「物件變小」，不是「物件往上飄」。
+
+【鎖定不變（極重要）——除了主題物的體型與累積量，其餘一切逐張保持一致】
+* 背景、JP 彩金橫幅（標題與金額數字）、遊戲 Logo、名稱底板：位置、大小、內容完全不變，五張如同同一畫面的五格動畫。
+* 主題物的長相不變：${ax.identity}——五個階段中完全相同，只變體型大小與累積量。
+* 燈光方向、鏡頭視角、整體構圖不變。
+* 維持高彩度、圓潤糖果光澤、亮黃金色金屬及紅橘色陰影；不可變成古銅色、暗金色、低飽和或灰階材質。
+
+【輸出】
+* 5 張與提案畫面相同尺寸的完整畫面，檔名依序：ACCUM_LV1.png ～ ACCUM_LV5.png（第1階最低但不空曠 → 第5階胖滿塞滿螢幕）。
+* 逐張獨立輸出完整不裁切的畫面；五張並排或快速切換播放時，應呈現「同一個畫面裡的主題物原地累積長大」的效果。`;
+
+  document.getElementById('accumPromptOut').value = prompt;
+}
+
 // ---------- 元件拆圖 Prompt 生成 ----------
 function sanitizeFile(str) {
   return String(str).toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'X';
@@ -1167,6 +1699,38 @@ function renderSplitPrompt() {
   }
   lines.push(`請完整保留每個主題物的造型、比例、材質與原本色調；邊緣細節（毛邊、流蘇、手指、垂飾等）必須乾淨完整，不可融合、缺角或產生多餘結構。`);
   lines.push('');
+
+  // ── HHFP 玩法模板：主角＋雙層輪盤（三件同心，供動畫分層旋轉） ──
+  if (state.gameplay === 'hhfp') {
+    if (state.charKey !== 'none') {
+    lines.push(`HHFP 組 A：單一主角`);
+    lines.push('');
+    idx++;
+    lines.push(`${idx}. CHARACTER.png`);
+    lines.push(`   * 完整的主角（${characterLabel()}）：姿態、表情、服裝配件與色調忠實對應提案畫面`);
+    lines.push(`   * 不包含輪盤、JP 元件、主題物、名稱底板與背景`);
+    lines.push(`   * 被主題物或彩金底板遮住的部分（如下半身、衣襬）必須合理補繪成完整全身`);
+    lines.push('');
+    }
+    lines.push(`HHFP 組${state.charKey === 'none' ? '' : ' B'}：雙層輪盤（拆成三件「同心」元件——外圈、內圈、中央 hub 各自獨立，供之後動畫分層旋轉使用）`);
+    lines.push('');
+    idx++;
+    lines.push(`${idx}. WHEEL_OUTER.png`);
+    lines.push(`   * 完整的外圈環（${state.wheelOut} 段、含金色分隔輻條與外緣燈珠圈）`);
+    lines.push(`   * 中央（內圈與 hub 所在的區域）必須是「透明圓孔」，不可畫入內圈或 hub`);
+    lines.push(`   * 被${state.charKey === 'none' ? '' : '主角或'}JP 底板遮住的段落必須依既有段落的節奏補繪成完整一圈`);
+    idx++;
+    lines.push(`${idx}. WHEEL_INNER.png`);
+    lines.push(`   * 完整的內圈環（${state.wheelIn} 段、含金色分隔輻條）`);
+    lines.push(`   * 中央（hub 所在的區域）必須是「透明圓孔」，不可畫入 hub`);
+    lines.push(`   * 同樣需補繪被遮住的段落成完整一圈`);
+    idx++;
+    lines.push(`${idx}. WHEEL_HUB.png`);
+    lines.push(`   * 中央 hub 金色徽章（含 ×2 倍率數字），完整圓形`);
+    lines.push('');
+    lines.push(`三件輪盤元件必須「同圓心、直徑比例照提案畫面」：把三件依原比例疊回去要能還原成提案畫面中的完整雙層輪盤（對位驗證由 composite_preview 承擔）。段落上的寶石圓點與 MAJOR／GRAND／UP 金字保留在各自的環上。`);
+    lines.push('');
+  }
 
   // ── 第二組：JP 彩金元件（由最高階起） ──
   lines.push(`第二組：JP 彩金元件（每組拆成「英文標題」與「空白底框」兩件，共 ${tiers.length * 2} 件；不需輸出任何金額數字；由最高階開始）`);
@@ -1217,6 +1781,9 @@ function renderSplitPrompt() {
     sky: '蔚藍天空＋蓬鬆白雲',
     papercut: '深紅底＋中央大圓回字紋＋左右對稱剪紙雲紋',
     palace: '皇宮室內對稱景（蟠龍柱＋宮燈＋暖金光暈）',
+    lanternstreet: '夜晚燈籠街景（深藍夜空＋紅燈籠串透視＋屋簷剪影＋金紅光暈）',
+    goldship: '海上金船甲板（金色海平線＋桅杆帆影＋日光暈）',
+    kungfukitchen: '功夫廚房（左右鑊火金焰＋蒸氣＋爐心暖光）',
   };
   idx++;
   lines.push(`第五組：背景圖`);
@@ -1285,7 +1852,7 @@ function buildConfigJSON() {
   const t = themeData();
   return {
     tool: 'slot-jackpot-proposal-tool',
-    version: 'v1.01 · built with Fable 5',
+    version: 'v1.19 · built with Fable 5',
     exportedAt: new Date().toISOString(),
     jpCount: state.jpCount,
     tierKeys: state.tierKeys.slice(),
@@ -1301,12 +1868,18 @@ function buildConfigJSON() {
     gameTitleSimplified: toSimplified(state.gameTitle || ''),
     lang: state.lang,
     splitMode: state.splitMode,
+    gameplay: state.gameplay,
+    wheel: state.gameplay === 'hhfp' ? { outer: state.wheelOut, inner: state.wheelIn } : null,
+    character: state.gameplay === 'hhfp'
+      ? { key: state.charKey, label: characterLabel(), custom: state.charKey === 'custom' ? state.charCustom : null }
+      : null,
     scope: state.scope,
     density: state.density,
     background: state.bg,
     currency: document.getElementById('currency').value || '₱',
     prompt: document.getElementById('promptOut').value,
     langPrompt: document.getElementById('langPromptOut').value,
+    accumPrompt: document.getElementById('accumPromptOut').value,
     splitPrompt: document.getElementById('splitPromptOut').value,
   };
 }
@@ -1376,6 +1949,9 @@ function drawConfigCard() {
   const cfg = buildConfigJSON();
   const scale = 2, W = 720;
   const rows = [];
+  rows.push(['玩法模板', cfg.gameplay === 'hhfp' ? 'HHFP（雙層輪盤・五層堆疊）' : '通用']);
+  if (cfg.gameplay === 'hhfp' && cfg.character) rows.push(['主角', cfg.character.label]);
+  if (cfg.gameplay === 'hhfp' && cfg.wheel) rows.push(['雙層輪盤', '外圈 ' + cfg.wheel.outer + ' 段／內圈 ' + cfg.wheel.inner + ' 段']);
   rows.push(['彩金組數', cfg.jpCount + ' 組（' + cfg.tierKeys.join(' / ') + '）']);
   rows.push(['核心特色數', cfg.featCount + ' 個']);
   rows.push(['主題', cfg.theme.label]);
@@ -1383,7 +1959,7 @@ function drawConfigCard() {
   rows.push(['彩金名稱', `${cfg.gameTitle} → 簡體：${cfg.gameTitleSimplified}`]);
   rows.push(['輸出範圍', cfg.scope === 'both' ? '上＋下雙畫面（1920×2160）' : '上畫面（1920×1080）']);
   rows.push(['細節密度', { clean:'簡潔', standard:'標準', rich:'華麗' }[cfg.density]]);
-  rows.push(['背景風格', { red:'紅底祥雲', nature:'金色朝陽', sky:'藍天白雲', papercut:'剪紙圖騰', palace:'皇宮室內' }[cfg.background]]);
+  rows.push(['背景風格', { red:'紅底祥雲', nature:'金色朝陽', sky:'藍天白雲', papercut:'剪紙圖騰', palace:'皇宮室內', lanternstreet:'夜晚燈籠街', goldship:'海上金船', kungfukitchen:'功夫廚房' }[cfg.background]]);
   rows.push(['幣別符號', cfg.currency]);
 
   const headH = 92, rowH = 44, padB = 40;
@@ -1398,7 +1974,7 @@ function drawConfigCard() {
   // 標題
   ctx.fillStyle = '#ffd54f';
   ctx.font = 'bold 26px "Microsoft JhengHei", sans-serif';
-  ctx.fillText('🎰 彩金主題prompt自動產生器 v1.01 · built with Fable 5 — 設定摘要', 32, 48);
+  ctx.fillText('🎰 彩金主題prompt自動產生器 v1.19 · built with Fable 5 — 設定摘要', 32, 48);
   ctx.fillStyle = '#b89b6a';
   ctx.font = '14px "Microsoft JhengHei", sans-serif';
   ctx.fillText(new Date().toLocaleString('zh-TW'), 32, 74);
@@ -1488,6 +2064,29 @@ function applyConfig(cfg) {
   setActive('bgRow', state.bg);
   if (typeof cfg.currency === 'string' && cfg.currency) document.getElementById('currency').value = cfg.currency;
 
+  // 玩法模板與主角（v1.19+；舊檔無此欄位＝通用）
+  state.gameplay = cfg.gameplay === 'hhfp' ? 'hhfp' : 'generic';
+  setActive('gameplayRow', state.gameplay);
+  if (cfg.character && cfg.character.key) {
+    state.charKey = (CHARACTERS[cfg.character.key] || cfg.character.key === 'custom' || cfg.character.key === 'none') ? cfg.character.key : 'god_chibi';
+    state.charCustom = typeof cfg.character.custom === 'string' ? cfg.character.custom : '';
+    setActive('charRow', state.charKey);
+    document.getElementById('charCustomInput').value = state.charCustom;
+  }
+  if (cfg.wheel) {
+    state.wheelOut = [6,7,8,9,10,12].includes(+cfg.wheel.outer) ? +cfg.wheel.outer : 9;
+    state.wheelIn  = [6,7,8,9,10,12].includes(+cfg.wheel.inner) ? +cfg.wheel.inner : 9;
+    setActive('wheelOutRow', state.wheelOut);
+    setActive('wheelInRow', state.wheelIn);
+  }
+  applyGameplayUI();
+  // HHFP 鎖定會把特色帶回預設 → 再蓋回存檔內容（存檔內容優先）
+  if (state.gameplay === 'hhfp' && Array.isArray(cfg.features) && cfg.features.length === 3) {
+    state.featNames = cfg.features.map(f => (f.name || 'FEATURE'));
+    state.featColorKeys = cfg.features.map(f => COLOR_PALETTE[f.colorKey] ? f.colorKey : 'pink');
+    rebuildFeatNames(false);
+  }
+
   renderPreview();
   renderPrompt();
 }
@@ -1516,6 +2115,272 @@ rebuildFeatNames(true);
 syncTierChips();
 renderPreview();
 renderPrompt();
+
+/* ================= 排版工作台（Stage 2）＝ manifest 契約 xiaoliu.slot-skin/v1 ================= */
+const WB = (() => {
+  const CANVAS_W = 960, SW = 960/1920;   // 畫布 0.5x
+  // 基準尺寸（1920×1080 空間、scale=1 時）
+  const BASE = {
+    wheel: { w: 620, h: 620 }, jpItem: { w: 200, h: 90, gap: 16 },
+    logo: { w: 260, h: 140 }, character: { w: 420, h: 480 }, pot: { w: 300, h: 250 },
+  };
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  function defaultLayout() {
+    return {
+      wheel: { cx: .5, cy: .54, scale: 1, angleOffset: 0 },
+      jp: { cx: .5, cy: .10, scale: 1, items: {
+        'jp.grand': { dx: 0, dy: 0, scale: 1 }, 'jp.major': { dx: 0, dy: 0, scale: 1 },
+        'jp.minor': { dx: 0, dy: 0, scale: 1 }, 'jp.mini': { dx: 0, dy: 0, scale: 1 } } },
+      logo: { cx: .88, cy: .10, scale: 1 },
+      character: { cx: .5, cy: .58, scale: 1 },
+      'pot.0': { cx: .25, cy: .86, scale: 1 },
+      'pot.1': { cx: .5, cy: .86, scale: 1.15 },
+      'pot.2': { cx: .75, cy: .86, scale: 1 },
+    };
+  }
+  const S = { imgs: {}, layout: defaultLayout(), sel: 'wheel', jpItem: 'jp.grand', drag: null };
+
+  // 檔名對應（與模擬器 Skin 同一套規則的工作台子集）
+  function mapFile(name) {
+    let b = String(name).replace(/^.*[\/\\]/, '').replace(/\.(png|webp)$/i, '').trim();
+    const U = b.toUpperCase();
+    if (U === 'CHARACTER') return 'deco.character';
+    if (U === 'GAME_LOGO') return 'logo';
+    if (U === 'BG') return 'bg.top';
+    let m = U.match(/^WHEEL_(OUTER|INNER|HUB)$/); if (m) return 'wheel.' + m[1].toLowerCase();
+    m = U.match(/^JP_(GRAND|MAJOR|MINOR|MINI)_(FRAME|TITLE)$/);
+    if (m) return 'jp.' + m[1].toLowerCase() + (m[2] === 'TITLE' ? '.title' : '');
+    m = U.match(/^TOTEM_(PINK|GREEN|BLUE)_/);
+    if (m) return 'pot.' + ({ PINK: 0, GREEN: 1, BLUE: 2 })[m[1]];
+    return null;
+  }
+
+  // ---- manifest ----
+  function buildManifest() {
+    const L = S.layout;
+    const el = {};
+    el.wheel = { cx: +L.wheel.cx.toFixed(4), cy: +L.wheel.cy.toFixed(4), scale: +L.wheel.scale.toFixed(3), angleOffset: Math.round(L.wheel.angleOffset) };
+    el.jp = { cx: +L.jp.cx.toFixed(4), cy: +L.jp.cy.toFixed(4), scale: +L.jp.scale.toFixed(3), items: {} };
+    for (const k in L.jp.items) { const it = L.jp.items[k];
+      el.jp.items[k] = { dx: +it.dx.toFixed(4), dy: +it.dy.toFixed(4), scale: +it.scale.toFixed(3) }; }
+    ['logo', 'character', 'pot.0', 'pot.1', 'pot.2'].forEach(k => {
+      el[k] = { cx: +L[k].cx.toFixed(4), cy: +L[k].cy.toFixed(4), scale: +L[k].scale.toFixed(3) }; });
+    return {
+      schema: 'xiaoliu.slot-skin/v1', gameplay: 'HHFP', contract: 'hhfp/1',
+      theme: state.theme, title: state.gameTitle || '',
+      createdWith: 'slot-jackpot-proposal-tool v1.19',
+      createdAt: new Date().toISOString().slice(0, 10),
+      screen: { ref: 'top', aspect: [1920, 1080] },
+      elements: el,
+    };
+  }
+  function applyManifest(mf) {
+    if (!mf || mf.schema !== 'xiaoliu.slot-skin/v1') return { ok: false, msg: 'schema 不符（需 xiaoliu.slot-skin/v1）' };
+    if (mf.gameplay !== 'HHFP') return { ok: false, msg: '此 manifest 屬於玩法「' + mf.gameplay + '」，工作台目前為 HHFP' };
+    const L = defaultLayout(), E = mf.elements || {};
+    const num = (v, d) => (typeof v === 'number' && isFinite(v)) ? v : d;
+    if (E.wheel) { L.wheel.cx = clamp(num(E.wheel.cx, .5), 0, 1); L.wheel.cy = clamp(num(E.wheel.cy, .54), 0, 1);
+      L.wheel.scale = clamp(num(E.wheel.scale, 1), .05, 4); L.wheel.angleOffset = clamp(num(E.wheel.angleOffset, 0), -180, 180); }
+    if (E.jp) { L.jp.cx = clamp(num(E.jp.cx, .5), 0, 1); L.jp.cy = clamp(num(E.jp.cy, .1), 0, 1); L.jp.scale = clamp(num(E.jp.scale, 1), .05, 4);
+      for (const k in L.jp.items) if (E.jp.items && E.jp.items[k]) { const s = E.jp.items[k], t = L.jp.items[k];
+        t.dx = clamp(num(s.dx, 0), -.5, .5); t.dy = clamp(num(s.dy, 0), -.5, .5); t.scale = clamp(num(s.scale, 1), .05, 4); } }
+    ['logo', 'character', 'pot.0', 'pot.1', 'pot.2'].forEach(k => { if (E[k]) {
+      L[k].cx = clamp(num(E[k].cx, L[k].cx), 0, 1); L[k].cy = clamp(num(E[k].cy, L[k].cy), 0, 1); L[k].scale = clamp(num(E[k].scale, 1), .05, 4); } });
+    S.layout = L; syncSliders(); draw();
+    return { ok: true, msg: 'manifest 已載入（' + (mf.theme || '?') + '）' };
+  }
+
+  // ---- 幾何：每元素在 1920 空間的外框（drawRects 同步供點選）----
+  let rects = {};   // sel key → {x,y,w,h}（1920 空間）
+  function jpItemRect(k, idx) {
+    const L = S.layout, g = L.jp, it = g.items[k];
+    const bw = BASE.jpItem.w * g.scale * it.scale, bh = BASE.jpItem.h * g.scale * it.scale;
+    const totalW = 4 * BASE.jpItem.w * g.scale + 3 * BASE.jpItem.gap * g.scale;
+    const x0 = g.cx * 1920 - totalW / 2;
+    const cx = x0 + idx * (BASE.jpItem.w + BASE.jpItem.gap) * g.scale + BASE.jpItem.w * g.scale / 2 + it.dx * 1920;
+    const cy = g.cy * 1080 + it.dy * 1080;
+    return { x: cx - bw / 2, y: cy - bh / 2, w: bw, h: bh, cx, cy };
+  }
+  function elemRect(key) {
+    const L = S.layout;
+    if (key === 'wheel') { const d = BASE.wheel.w * L.wheel.scale;
+      return { x: L.wheel.cx * 1920 - d / 2, y: L.wheel.cy * 1080 - d / 2, w: d, h: d }; }
+    if (key === 'jp') { const r0 = jpItemRect('jp.grand', 0), r3 = jpItemRect('jp.mini', 3);
+      const x = Math.min(r0.x, r3.x), y = Math.min(r0.y, r3.y);
+      return { x, y, w: Math.max(r0.x + r0.w, r3.x + r3.w) - x, h: Math.max(r0.h, r3.h) }; }
+    const b = key === 'logo' ? BASE.logo : key === 'character' ? BASE.character : BASE.pot;
+    const e = L[key];
+    return { x: e.cx * 1920 - b.w * e.scale / 2, y: e.cy * 1080 - b.h * e.scale / 2, w: b.w * e.scale, h: b.h * e.scale };
+  }
+
+  // ---- 繪製 ----
+  const cvs = document.getElementById('wbCanvas'), c2 = cvs.getContext('2d');
+  function drawImgFit(img, r) {
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    const s = Math.min(r.w / iw, r.h / ih), w = iw * s, h = ih * s;
+    c2.drawImage(img, (r.x + r.w / 2 - w / 2) * SW, (r.y + r.h / 2 - h / 2) * SW, w * SW, h * SW);
+  }
+  function ph(r, label, color) {   // 佔位框
+    c2.save(); c2.strokeStyle = color; c2.setLineDash([6, 4]); c2.lineWidth = 1.5;
+    c2.strokeRect(r.x * SW, r.y * SW, r.w * SW, r.h * SW);
+    c2.fillStyle = color; c2.font = '12px sans-serif'; c2.textAlign = 'center';
+    c2.fillText(label, (r.x + r.w / 2) * SW, (r.y + r.h / 2) * SW + 4); c2.restore();
+  }
+  function draw() {
+    c2.clearRect(0, 0, cvs.width, cvs.height);
+    // 背景
+    if (S.imgs['bg.top']) drawImgFit(S.imgs['bg.top'], { x: 0, y: 0, w: 1920, h: 1080 });
+    else { c2.fillStyle = '#241a10'; c2.fillRect(0, 0, cvs.width, cvs.height); }
+    rects = {};
+    // 1) 轉輪（三件同心）
+    const wr = elemRect('wheel'); rects.wheel = wr;
+    const wc = { x: (wr.x + wr.w / 2) * SW, y: (wr.y + wr.h / 2) * SW };
+    const rot = S.layout.wheel.angleOffset * Math.PI / 180;
+    const ring = (key, frac) => { const img = S.imgs[key]; if (!img) return false;
+      const d = wr.w * frac * SW; c2.save(); c2.translate(wc.x, wc.y); c2.rotate(rot);
+      c2.drawImage(img, -d / 2, -d / 2, d, d); c2.restore(); return true; };
+    const drew = [ring('wheel.outer', 1), ring('wheel.inner', .62), ring('wheel.hub', .27)];
+    if (!drew.some(Boolean)) ph(wr, '轉輪（WHEEL×3）', '#e8b64f');
+    // 2) JP 列
+    ['jp.grand', 'jp.major', 'jp.minor', 'jp.mini'].forEach((k, i) => {
+      const r = jpItemRect(k, i); rects['@' + k] = r;
+      if (S.imgs[k]) { c2.drawImage(S.imgs[k], r.x * SW, r.y * SW, r.w * SW, r.h * SW); }
+      else ph(r, k.split('.')[1].toUpperCase(), '#d0a040');
+      if (S.imgs[k + '.title']) drawImgFit(S.imgs[k + '.title'], r);
+    });
+    rects.jp = elemRect('jp');
+    // 3) Logo
+    const lr = elemRect('logo'); rects.logo = lr;
+    if (S.imgs['logo']) drawImgFit(S.imgs['logo'], lr); else ph(lr, 'LOGO', '#d0a040');
+    // 4) 主角
+    const cr = elemRect('character'); rects.character = cr;
+    if (S.imgs['deco.character']) drawImgFit(S.imgs['deco.character'], cr); else ph(cr, '主角', '#f0e0a0');
+    // 5) 特色物
+    [0, 1, 2].forEach(i => { const k = 'pot.' + i, r = elemRect(k); rects[k] = r;
+      if (S.imgs[k]) drawImgFit(S.imgs[k], r); else ph(r, '特色' + (i + 1), ['#f06aa8', '#3fa650', '#3f7fd0'][i]); });
+    // 選取框
+    const selR = S.sel === 'jp' ? rects.jp : rects[S.sel];
+    if (selR) { c2.save(); c2.strokeStyle = '#7fd4ff'; c2.lineWidth = 2;
+      c2.strokeRect(selR.x * SW - 2, selR.y * SW - 2, selR.w * SW + 4, selR.h * SW + 4); c2.restore(); }
+    if (S.sel === 'jp') { const r = rects['@' + S.jpItem];
+      if (r) { c2.save(); c2.strokeStyle = '#ffd54f'; c2.setLineDash([4, 3]); c2.lineWidth = 2;
+        c2.strokeRect(r.x * SW, r.y * SW, r.w * SW, r.h * SW); c2.restore(); } }
+    document.getElementById('wbSelName').textContent = '選中：' + S.sel + (S.sel === 'jp' ? '（單格 ' + S.jpItem + '）' : '');
+  }
+
+  // ---- 選取/拖曳/縮放 ----
+  function pickAt(px, py) {   // 1920 空間座標；小物優先
+    const order = ['pot.0', 'pot.1', 'pot.2', 'character', 'logo', 'jp', 'wheel'];
+    for (const k of order) { const r = k === 'jp' ? rects.jp : rects[k];
+      if (r && px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) return k; }
+    return null;
+  }
+  function selTarget() { return S.sel === 'jp' ? S.layout.jp : (S.sel === 'wheel' ? S.layout.wheel : S.layout[S.sel]); }
+  function syncSliders() {
+    const t = selTarget();
+    document.getElementById('wbScale').value = t.scale; document.getElementById('wbScaleVal').textContent = t.scale.toFixed(2);
+    document.getElementById('wbAngleField').style.display = S.sel === 'wheel' ? 'flex' : 'none';
+    if (S.sel === 'wheel') { document.getElementById('wbAngle').value = S.layout.wheel.angleOffset;
+      document.getElementById('wbAngleVal').textContent = Math.round(S.layout.wheel.angleOffset) + '°'; }
+    document.getElementById('wbJpBox').style.display = S.sel === 'jp' ? 'block' : 'none';
+    if (S.sel === 'jp') { const it = S.layout.jp.items[S.jpItem];
+      document.getElementById('wbJpScale').value = it.scale; document.getElementById('wbJpScaleVal').textContent = it.scale.toFixed(2); }
+  }
+  function setSel(k) { S.sel = k; setActive('wbElemRow', k === 'deco.character' ? 'character' : k); syncSliders(); draw(); }
+
+  cvs.addEventListener('pointerdown', e => {
+    const b = cvs.getBoundingClientRect();
+    const px = (e.clientX - b.left) / b.width * 1920, py = (e.clientY - b.top) / b.height * 1080;
+    const hit = pickAt(px, py);
+    if (hit) { if (hit !== S.sel) setSel(hit);
+      S.drag = { px, py, alt: e.altKey && S.sel === 'jp' };
+      cvs.setPointerCapture(e.pointerId); }
+  });
+  cvs.addEventListener('pointermove', e => {
+    if (!S.drag) return;
+    const b = cvs.getBoundingClientRect();
+    const px = (e.clientX - b.left) / b.width * 1920, py = (e.clientY - b.top) / b.height * 1080;
+    const ddx = (px - S.drag.px) / 1920, ddy = (py - S.drag.py) / 1080;
+    S.drag.px = px; S.drag.py = py;
+    if (S.drag.alt) { const it = S.layout.jp.items[S.jpItem];
+      it.dx = clamp(it.dx + ddx, -.5, .5); it.dy = clamp(it.dy + ddy, -.5, .5); }
+    else { const t = selTarget(); t.cx = clamp(t.cx + ddx, 0, 1); t.cy = clamp(t.cy + ddy, 0, 1); }
+    draw();
+  });
+  cvs.addEventListener('pointerup', () => S.drag = null);
+  cvs.addEventListener('wheel', e => { e.preventDefault();
+    const t = selTarget(); t.scale = clamp(t.scale * (e.deltaY < 0 ? 1.04 : 0.96), .2, 2.5); syncSliders(); draw(); }, { passive: false });
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('tabWB').style.display === 'none') return;
+    const step = (e.shiftKey ? .01 : .002);
+    const mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (!mv) return; e.preventDefault();
+    const t = selTarget(); t.cx = clamp(t.cx + mv[0], 0, 1); t.cy = clamp(t.cy + mv[1], 0, 1); draw();
+  });
+
+  // ---- UI 綁定 ----
+  bindToggle('wbElemRow', v => setSel(v));
+  bindToggle('wbJpItemRow', v => { S.jpItem = v; syncSliders(); draw(); });
+  document.getElementById('wbScale').addEventListener('input', e => {
+    const t = selTarget(); t.scale = +e.target.value; document.getElementById('wbScaleVal').textContent = t.scale.toFixed(2); draw(); });
+  document.getElementById('wbAngle').addEventListener('input', e => {
+    S.layout.wheel.angleOffset = +e.target.value; document.getElementById('wbAngleVal').textContent = e.target.value + '°'; draw(); });
+  document.getElementById('wbJpScale').addEventListener('input', e => {
+    S.layout.jp.items[S.jpItem].scale = +e.target.value; document.getElementById('wbJpScaleVal').textContent = (+e.target.value).toFixed(2); draw(); });
+  document.getElementById('wbReset').addEventListener('click', () => { S.layout = defaultLayout(); syncSliders(); draw(); });
+  document.getElementById('wbExport').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(buildManifest(), null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'manifest.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  });
+  document.getElementById('wbLoadBtn').addEventListener('click', () => document.getElementById('wbFile').click());
+  document.getElementById('wbClearBtn').addEventListener('click', () => { S.imgs = {}; refreshLoadState(''); draw(); });
+  function refreshLoadState(msg) {
+    const n = Object.keys(S.imgs).length;
+    document.getElementById('wbLoadState').innerHTML = (n ? '已載入 <b>' + n + '</b> 張圖' : '尚未載入') + (msg ? '<br>' + msg : '');
+  }
+  function loadFiles(files) {
+    const un = []; let pend = 0;
+    [...files].forEach(f => {
+      if (/\.json$/i.test(f.name)) { const rd = new FileReader();
+        rd.onload = () => { try { const r = applyManifest(JSON.parse(rd.result));
+          refreshLoadState(r.ok ? r.msg : '❌ ' + r.msg); } catch (_) { refreshLoadState('❌ manifest 解析失敗'); } };
+        rd.readAsText(f); return; }
+      const key = /\.(png|webp)$/i.test(f.name) ? mapFile(f.name) : null;
+      if (!key) { un.push(f.name); return; }
+      pend++;
+      const rd = new FileReader();
+      rd.onload = () => { const img = new Image();
+        img.onload = () => { S.imgs[key] = img; if (--pend === 0) { refreshLoadState(un.length ? '略過：' + un.join('、') : ''); draw(); } };
+        img.onerror = () => { un.push(f.name); if (--pend === 0) { refreshLoadState('略過：' + un.join('、')); draw(); } };
+        img.src = rd.result; };
+      rd.readAsDataURL(f);
+    });
+    if (!pend) { refreshLoadState(un.length ? '略過：' + un.join('、') : ''); draw(); }
+  }
+  document.getElementById('wbFile').addEventListener('change', e => { loadFiles(e.target.files); e.target.value = ''; });
+  cvs.addEventListener('dragover', e => e.preventDefault());
+  cvs.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) loadFiles(e.dataTransfer.files); });
+
+  setSel('wheel'); draw();
+  return { buildManifest, applyManifest, defaultLayout, mapFile, S, draw, setSel };
+})();
+window.__WB = WB;
+
+/* ---- 分頁切換 ---- */
+document.getElementById('tabBtnMain').addEventListener('click', () => {
+  document.getElementById('tabMain').style.display = '';
+  document.getElementById('tabWB').style.display = 'none';
+  document.getElementById('tabBtnMain').classList.add('active');
+  document.getElementById('tabBtnWB').classList.remove('active');
+});
+document.getElementById('tabBtnWB').addEventListener('click', () => {
+  document.getElementById('tabMain').style.display = 'none';
+  document.getElementById('tabWB').style.display = '';
+  document.getElementById('tabBtnWB').classList.add('active');
+  document.getElementById('tabBtnMain').classList.remove('active');
+  WB.draw();
+});
 </script>
 </body>
 </html>
